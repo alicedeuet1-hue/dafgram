@@ -3,12 +3,22 @@ from app.db.models import (
     Company, User, UserRole, Budget, Transaction, Employee, SalesGoal,
     Document, Category, CategoryRule, BankImport, UserCompany, UserCompanyRole
 )
-from datetime import datetime
+from datetime import datetime, timezone
+from sqlalchemy import inspect
 import bcrypt
 
 def create_tables():
-    """Créer toutes les tables"""
+    """Créer toutes les tables, reset si le schéma est incompatible"""
     print("Creating database tables...")
+
+    # Vérifier si l'ancien schéma existe (migration depuis l'ancien code)
+    inspector = inspect(engine)
+    if inspector.has_table("users"):
+        columns = [col['name'] for col in inspector.get_columns("users")]
+        if "full_name" not in columns:
+            print("Incompatible schema detected (old codebase), resetting database...")
+            Base.metadata.drop_all(bind=engine)
+
     Base.metadata.create_all(bind=engine)
     print("Database tables created successfully!")
 
@@ -28,7 +38,7 @@ def seed_data():
         demo_company = Company(
             name="Demo Company",
             slug="demo-company",
-            created_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc)
         )
         db.add(demo_company)
         db.flush()
@@ -102,7 +112,7 @@ def ensure_demo_users():
                 name="Demo Company",
                 slug="demo-company",
                 is_active=True,
-                created_at=datetime.utcnow()
+                created_at=datetime.now(timezone.utc)
             )
             db.add(demo_company)
             db.flush()
