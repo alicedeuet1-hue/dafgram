@@ -1,0 +1,71 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+import os
+from app.api.routes.health import router as health_router
+from app.api.routes.auth import router as auth_router
+from app.api.routes.budgets import router as budgets_router
+from app.api.routes.transactions import router as transactions_router
+from app.api.routes.employees import router as employees_router
+# from app.api.routes.documents import router as documents_router  # Requires libmagic
+from app.api.routes.companies import router as companies_router
+from app.api.routes.bank_import import router as bank_import_router
+from app.api.routes.budget_categories import router as budget_categories_router
+from app.api.routes.clients import router as clients_router
+# from app.api.routes.invoices import router as invoices_router  # Requires reportlab
+# from app.api.routes.quotes import router as quotes_router  # Requires reportlab
+from app.api.routes.vat_rates import router as vat_rates_router
+from app.api.routes.savings_categories import router as savings_categories_router
+from app.api.routes.time_entries import router as time_entries_router
+from app.api.routes.payment import router as payment_router
+from app.core.config import settings
+
+app = FastAPI(title=settings.APP_NAME, version=settings.API_VERSION)
+
+# Configuration CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://frontend:3000",
+        "https://dafgram.com",
+        "https://www.dafgram.com",
+        "https://app.dafgram.com",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Créer le dossier uploads s'il n'existe pas
+UPLOAD_DIR = settings.UPLOAD_DIR
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# Servir les fichiers statiques (images uploadées)
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+
+# Routes
+app.include_router(health_router, prefix="/api")
+app.include_router(auth_router, prefix="/api/auth")
+app.include_router(budgets_router, prefix="/api/budgets")
+app.include_router(transactions_router, prefix="/api/transactions")
+app.include_router(employees_router, prefix="/api/employees")
+# app.include_router(documents_router, prefix="/api/documents")  # Requires libmagic
+app.include_router(companies_router, prefix="/api/companies")
+app.include_router(bank_import_router, prefix="/api/bank")
+app.include_router(budget_categories_router, prefix="/api/budget-categories")
+app.include_router(clients_router, prefix="/api/clients")
+# app.include_router(invoices_router, prefix="/api/invoices")  # Requires reportlab
+# app.include_router(quotes_router, prefix="/api/quotes")  # Requires reportlab
+app.include_router(vat_rates_router, prefix="/api/vat-rates")
+app.include_router(savings_categories_router, prefix="/api/savings-categories")
+app.include_router(time_entries_router, prefix="/api/time-entries")
+app.include_router(payment_router, prefix="/api/payment")
+
+@app.get("/")
+def root():
+    return {
+        "name": settings.APP_NAME,
+        "version": settings.API_VERSION,
+        "status": "ok"
+    }

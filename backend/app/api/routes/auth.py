@@ -1,0 +1,387 @@
+"""
+Routes d'authentification (JWT + OAuth2)
+"""
+import os
+import uuid
+import shutil
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy.orm import Session
+from datetime import timedelta
+from typing import Optional
+import httpx
+from authlib.integrations.starlette_client import OAuth
+
+from app.db.database import get_db
+from app.db.models import User, UserRole, Company, UserCompany, UserCompanyRole
+from app.core.config import settings
+
+# Dossier pour stocker les uploads
+UPLOAD_DIR = settings.UPLOAD_DIR
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+from app.schemas.auth import (
+    UserCreate, UserLogin, UserResponse, Token, OAuthCallback,
+    RegisterRequest, RegisterResponse
+)
+from app.core.security import (
+    verify_password,
+    get_password_hash,
+    create_access_token,
+    get_current_active_user
+)
+from app.core.config import settings
+
+router = APIRouter(tags=["authentication"])
+
+# Configuration OAuth
+oauth = OAuth()
+
+# Google OAuth
+if settings.GOOGLE_CLIENT_ID and settings.GOOGLE_CLIENT_SECRET:
+    oauth.register(
+        name='google',
+        client_id=settings.GOOGLE_CLIENT_ID,
+        client_secret=settings.GOOGLE_CLIENT_SECRET,
+        server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+        client_kwargs={'scope': 'openid email profile'}
+    )
+
+# Microsoft OAuth
+if settings.MICROSOFT_CLIENT_ID and settings.MICROSOFT_CLIENT_SECRET:
+    oauth.register(
+        name='microsoft',
+        client_id=settings.MICROSOFT_CLIENT_ID,
+        client_secret=settings.MICROSOFT_CLIENT_SECRET,
+        authorize_url='https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
+        access_token_url='https://login.microsoftonline.com/common/oauth2/v2.0/token',
+        client_kwargs={'scope': 'openid email profile'}
+    )
+
+
+@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+async def register(user_data: UserCreate, db: Session = Depends(get_db)):
+    """Enregistrer un nouvel utilisateur (dans une entreprise existante)"""
+    # Vérifier si l'email existe déjà
+    existing_user = db.query(User).filter(User.email == user_data.email).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered"
+        )
+
+    # Créer l'utilisateur
+    hashed_password = get_password_hash(user_data.password)
+    new_user = User(
+        email=user_data.email,
+        hashed_password=hashed_password,
+        full_name=user_data.full_name,
+        role=user_data.role,
+        company_id=user_data.company_id
+    )
+
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    return new_user
+
+
+def generate_slug(name: str, db: Session) -> str:
+    """Génère un slug unique à partir du nom de l'entreprise"""
+    import re
+    # Convertir en minuscules et remplacer les espaces par des tirets
+    base_slug = re.sub(r'[^a-z0-9]+', '-', name.lower()).strip('-')
+    slug = base_slug
+
+    # Vérifier l'unicité et ajouter un numéro si nécessaire
+    counter = 1
+    while db.query(Company).filter(Company.slug == slug).first():
+        slug = f"{base_slug}-{counter}"
+        counter += 1
+
+    return slug
+
+
+@router.post("/register/company", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
+async def register_company(data: RegisterRequest, db: Session = Depends(get_db)):
+    """
+    Inscription complète : créer une nouvelle entreprise et son administrateur.
+    L'utilisateur démarre avec un compte vierge (aucune donnée).
+    """
+    # Vérifier si l'email utilisateur existe déjà
+    existing_user = db.query(User).filter(User.email == data.email).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cet email est déjà utilisé"
+        )
+
+    # Vérifier si l'email entreprise existe déjà (si fourni)
+    if data.company.email:
+        existing_company_email = db.query(Company).filter(Company.email == data.company.email).first()
+        if existing_company_email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Une entreprise avec cet email existe déjà"
+            )
+
+    # Vérifier si le numéro de TVA existe déjà (si fourni)
+    if data.company.vat_number:
+        existing_vat = db.query(Company).filter(Company.vat_number == data.company.vat_number).first()
+        if existing_vat:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Ce numéro de TVA est déjà enregistré"
+            )
+
+    try:
+        # 1. Créer l'entreprise
+        slug = generate_slug(data.company.name, db)
+        new_company = Company(
+            name=data.company.name,
+            slug=slug,
+            email=data.company.email,
+            phone=data.company.phone,
+            address=data.company.address,
+            city=data.company.city,
+            postal_code=data.company.postal_code,
+            country=data.company.country or "France",
+            vat_number=data.company.vat_number,
+            is_active=True
+        )
+        db.add(new_company)
+        db.flush()  # Pour obtenir l'ID sans commit
+
+        # 2. Créer l'utilisateur administrateur
+        hashed_password = get_password_hash(data.password)
+        new_user = User(
+            email=data.email,
+            hashed_password=hashed_password,
+            full_name=data.full_name,
+            role=UserRole.COMPANY_ADMIN,
+            company_id=new_company.id,
+            current_company_id=new_company.id,
+            is_active=True
+        )
+        db.add(new_user)
+        db.flush()  # Pour obtenir l'ID utilisateur
+
+        # 3. Créer la liaison UserCompany
+        user_company = UserCompany(
+            user_id=new_user.id,
+            company_id=new_company.id,
+            role=UserCompanyRole.OWNER,
+            is_default=True
+        )
+        db.add(user_company)
+
+        # 4. Commit de toutes les créations
+        db.commit()
+        db.refresh(new_company)
+        db.refresh(new_user)
+
+        # 4. Générer le token JWT pour connexion automatique
+        access_token_expires = timedelta(minutes=settings.JWT_EXPIRES_MIN)
+        access_token = create_access_token(
+            data={
+                "sub": new_user.email,
+                "role": new_user.role.value,
+                "company_id": new_company.id
+            },
+            expires_delta=access_token_expires
+        )
+
+        return RegisterResponse(
+            message="Inscription réussie ! Bienvenue sur DafGram.",
+            user=UserResponse(
+                id=new_user.id,
+                email=new_user.email,
+                full_name=new_user.full_name,
+                role=new_user.role,
+                company_id=new_company.id,
+                is_active=new_user.is_active
+            ),
+            company_name=new_company.name,
+            access_token=access_token,
+            token_type="bearer"
+        )
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erreur lors de l'inscription: {str(e)}"
+        )
+
+
+@router.post("/login", response_model=Token)
+async def login(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db)
+):
+    """Connexion avec email/password (JWT)"""
+    # Trouver l'utilisateur
+    user = db.query(User).filter(User.email == form_data.username).first()
+
+    if not user or not user.hashed_password:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Vérifier le mot de passe
+    if not verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Inactive user"
+        )
+
+    # Créer le token
+    access_token_expires = timedelta(minutes=settings.JWT_EXPIRES_MIN)
+    access_token = create_access_token(
+        data={"sub": user.email, "role": user.role.value, "company_id": user.company_id},
+        expires_delta=access_token_expires
+    )
+
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
+@router.post("/login/json", response_model=Token)
+async def login_json(user_data: UserLogin, db: Session = Depends(get_db)):
+    """Connexion avec JSON (alternative à OAuth2PasswordRequestForm)"""
+    user = db.query(User).filter(User.email == user_data.email).first()
+
+    if not user or not user.hashed_password:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password"
+        )
+
+    if not verify_password(user_data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password"
+        )
+
+    if not user.is_active:
+        raise HTTPException(status_code=400, detail="Inactive user")
+
+    access_token_expires = timedelta(minutes=settings.JWT_EXPIRES_MIN)
+    access_token = create_access_token(
+        data={"sub": user.email, "role": user.role.value, "company_id": user.company_id},
+        expires_delta=access_token_expires
+    )
+
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
+@router.get("/me", response_model=UserResponse)
+async def get_me(current_user: User = Depends(get_current_active_user)):
+    """Obtenir les informations de l'utilisateur connecté"""
+    return current_user
+
+
+# OAuth2 Routes (Google & Microsoft)
+@router.get("/oauth/{provider}")
+async def oauth_login(provider: str):
+    """Initier la connexion OAuth (Google ou Microsoft)"""
+    if provider not in ["google", "microsoft"]:
+        raise HTTPException(status_code=400, detail="Provider not supported")
+
+    if provider == "google" and not settings.GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=400, detail="Google OAuth not configured")
+
+    if provider == "microsoft" and not settings.MICROSOFT_CLIENT_ID:
+        raise HTTPException(status_code=400, detail="Microsoft OAuth not configured")
+
+    # Retourner l'URL d'autorisation (à implémenter avec Starlette/FastAPI)
+    return {
+        "message": f"OAuth {provider} - Redirect to authorization URL",
+        "note": "Full OAuth flow requires Starlette integration with session support"
+    }
+
+
+@router.post("/oauth/{provider}/callback")
+async def oauth_callback(
+    provider: str,
+    callback_data: OAuthCallback,
+    db: Session = Depends(get_db)
+):
+    """
+    Callback OAuth après autorisation
+    Note: Implémentation simplifiée. Pour une vraie implémentation,
+    utilisez Authlib avec Starlette sessions.
+    """
+    # TODO: Implémenter la logique complète OAuth avec Authlib
+    # 1. Échanger le code contre un access_token
+    # 2. Récupérer les infos utilisateur
+    # 3. Créer ou mettre à jour l'utilisateur
+    # 4. Générer un JWT
+
+    return {
+        "message": "OAuth callback received",
+        "note": "Full implementation requires Authlib integration"
+    }
+
+
+@router.post("/me/avatar", response_model=UserResponse)
+async def upload_avatar(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Uploader la photo de profil de l'utilisateur"""
+    # Vérifier le type de fichier
+    allowed_types = ["image/jpeg", "image/png", "image/gif", "image/webp"]
+    if file.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=400,
+            detail="Type de fichier non autorisé. Utilisez JPEG, PNG, GIF ou WebP."
+        )
+
+    # Générer un nom unique
+    ext = file.filename.split(".")[-1] if "." in file.filename else "png"
+    filename = f"user_{current_user.id}_avatar_{uuid.uuid4().hex[:8]}.{ext}"
+    filepath = os.path.join(UPLOAD_DIR, filename)
+
+    # Supprimer l'ancien avatar si existant
+    if current_user.avatar_url:
+        old_path = os.path.join(UPLOAD_DIR, current_user.avatar_url.split("/")[-1])
+        if os.path.exists(old_path):
+            os.remove(old_path)
+
+    # Sauvegarder le fichier
+    with open(filepath, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    # Mettre à jour l'URL dans la base
+    current_user.avatar_url = f"/uploads/{filename}"
+    db.commit()
+    db.refresh(current_user)
+
+    return current_user
+
+
+@router.delete("/me/avatar", response_model=UserResponse)
+async def delete_avatar(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Supprimer la photo de profil de l'utilisateur"""
+    if current_user.avatar_url:
+        old_path = os.path.join(UPLOAD_DIR, current_user.avatar_url.split("/")[-1])
+        if os.path.exists(old_path):
+            os.remove(old_path)
+        current_user.avatar_url = None
+        db.commit()
+        db.refresh(current_user)
+
+    return current_user

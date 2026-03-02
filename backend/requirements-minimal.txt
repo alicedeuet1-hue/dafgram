@@ -1,0 +1,12 @@
+# Core
+fastapi
+uvicorn
+pydantic-settings
+
+# Database
+sqlalchemy
+
+# Auth
+python-jose[cryptography]
+bcrypt
+python-multipart

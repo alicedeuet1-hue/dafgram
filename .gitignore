@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+venv/
+
+# Environment
+.env
+
+# Database
+*.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Next.js
+.next/
+out/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Uploads (keep directory)
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Build
+*.tsbuildinfo
+next-env.d.ts
+
+# Claude
+.claude/
