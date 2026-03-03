@@ -288,13 +288,18 @@ export default function ChargesPage() {
 
   // Créer les catégories de base automatiquement
   const handleCreateBaseCategories = async () => {
-    const baseCategories = [
-      { name: 'Loyer', color: '#3B82F6' },       // Bleu
-      { name: 'Électricité', color: '#F59E0B' }, // Orange
-      { name: 'Internet', color: '#8B5CF6' },    // Violet
-      { name: 'Salaires', color: '#10B981' },    // Vert
-      { name: 'PUB', color: '#EF4444' },         // Rouge
-    ];
+    const baseCategories = isPersonalAccount
+      ? [
+          { name: 'Quotidien', color: '#3B82F6' },   // Bleu - besoins essentiels (50%)
+          { name: 'Plaisirs', color: '#8B5CF6' },     // Violet - envies, loisirs (30%)
+        ]
+      : [
+          { name: 'Loyer', color: '#3B82F6' },       // Bleu
+          { name: 'Électricité', color: '#F59E0B' }, // Orange
+          { name: 'Internet', color: '#8B5CF6' },    // Violet
+          { name: 'Salaires', color: '#10B981' },    // Vert
+          { name: 'PUB', color: '#EF4444' },         // Rouge
+        ];
 
     const existingNames = allCategories.map((cat) => cat.name.toLowerCase());
 

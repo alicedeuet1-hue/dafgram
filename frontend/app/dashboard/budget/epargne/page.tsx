@@ -46,6 +46,7 @@ export default function EpargnePage() {
   const theme = useTheme();
   const { currentCompany } = useCompanyStore();
   const currency = currentCompany?.currency || 'EUR';
+  const isPersonalAccount = currentCompany?.account_type === 'personal';
 
   // Navigation par mois
   const [selectedMonth, setSelectedMonth] = useState(() => new Date().getMonth() + 1);
@@ -253,7 +254,7 @@ export default function EpargnePage() {
               <Box>
                 <Typography variant="h6">Pourcentage d'épargne</Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Part du CA mensuel à mettre de côté
+                  {isPersonalAccount ? 'Part des revenus mensuels à mettre de côté' : 'Part du CA mensuel à mettre de côté'}
                 </Typography>
               </Box>
               <Chip

@@ -58,6 +58,7 @@ export default function SavingsPieCharts({
   const theme = useTheme();
   const { currentCompany } = useCompanyStore();
   const currency = currentCompany?.currency || 'EUR';
+  const isPersonalAccount = currentCompany?.account_type === 'personal';
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Date management
@@ -574,7 +575,7 @@ export default function SavingsPieCharts({
               </Typography>
               <Box sx={{ textAlign: 'right' }}>
                 <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                  {summary?.total_savings_percentage || 0}% du CA
+                  {summary?.total_savings_percentage || 0}% {isPersonalAccount ? 'des revenus' : 'du CA'}
                 </Typography>
                 <Typography variant="body2" sx={{ fontWeight: 700, color: '#10B981' }}>
                   {formatAmount(summary?.current_month_allocated || 0)}
@@ -870,7 +871,7 @@ export default function SavingsPieCharts({
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                   <Box sx={{ textAlign: 'right' }}>
                     <Typography variant="caption" color="text.secondary">
-                      Épargne du mois ({summary?.total_savings_percentage || 0}% du CA)
+                      Épargne du mois ({summary?.total_savings_percentage || 0}% {isPersonalAccount ? 'des revenus' : 'du CA'})
                     </Typography>
                     <Typography variant="h6" sx={{ fontWeight: 700, color: '#10B981' }}>
                       {formatAmount(summary?.current_month_allocated || 0)}

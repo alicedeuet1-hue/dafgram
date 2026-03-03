@@ -7,6 +7,7 @@ import SavingsPieCharts from '@/components/SavingsPieCharts';
 import TimePieCharts from '@/components/TimePieCharts';
 import BudgetAlerts from '@/components/BudgetAlerts';
 import RevenueChart from '@/components/RevenueChart';
+import PersonalExpenseSummary from '@/components/PersonalExpenseSummary';
 import SalesTracker from '@/components/SalesTracker';
 import {
   Box,
@@ -348,8 +349,12 @@ export default function DashboardPage() {
         </Grid>
       </Grid>
 
-      {/* Revenue Chart with Events */}
-      <RevenueChart currentDate={currentDate} adminMode={adminMode} />
+      {/* Revenue Chart (pro) / Expense Summary (personal) */}
+      {isPersonalAccount ? (
+        <PersonalExpenseSummary currentDate={currentDate} />
+      ) : (
+        <RevenueChart currentDate={currentDate} adminMode={adminMode} />
+      )}
 
       {/* Encart Comptabilité - À venir (pro seulement) */}
       {!isPersonalAccount && (

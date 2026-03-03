@@ -107,16 +107,10 @@ def generate_slug(name: str, db: Session) -> str:
 
 def _seed_personal_defaults(db: Session, company_id: int):
     """Créer les catégories par défaut pour un compte personnel."""
-    # Catégories de dépenses personnelles
+    # Catégories de dépenses personnelles (règle 50/30/20)
     expense_categories = [
-        {"name": "Logement", "color": "#3B82F6"},
-        {"name": "Alimentation", "color": "#10B981"},
-        {"name": "Transport", "color": "#F59E0B"},
-        {"name": "Loisirs", "color": "#8B5CF6"},
-        {"name": "Santé", "color": "#EF4444"},
-        {"name": "Éducation", "color": "#06B6D4"},
-        {"name": "Abonnements", "color": "#EC4899"},
-        {"name": "Divers", "color": "#6B7280"},
+        {"name": "Quotidien", "color": "#3B82F6"},     # 50% - besoins essentiels
+        {"name": "Plaisirs", "color": "#8B5CF6"},       # 30% - envies, loisirs
     ]
     for cat_data in expense_categories:
         db.add(Category(

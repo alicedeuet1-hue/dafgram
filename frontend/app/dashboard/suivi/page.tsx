@@ -65,6 +65,7 @@ export default function SuiviPage() {
   const router = useRouter();
   const { currentCompany } = useCompanyStore();
   const currency = currentCompany?.currency || 'EUR';
+  const isPersonalAccount = currentCompany?.account_type === 'personal';
 
   // Navigation par mois
   const [selectedMonth, setSelectedMonth] = useState(() => new Date().getMonth() + 1);
@@ -393,7 +394,7 @@ export default function SuiviPage() {
                       {formatCurrency(savingsCategoriesSummary?.total_remaining || 0, currency)}
                     </Typography>
                     <Typography variant="body2" sx={{ color: '#9CA3AF', mt: 1 }}>
-                      {savingsCategoriesSummary?.total_savings_percentage || 0}% du CA alloué à l'épargne
+                      {savingsCategoriesSummary?.total_savings_percentage || 0}% {isPersonalAccount ? 'des revenus alloué à l\'épargne' : 'du CA alloué à l\'épargne'}
                     </Typography>
                   </Paper>
                 </Grid>
@@ -688,7 +689,7 @@ export default function SuiviPage() {
                   Comment fonctionne l'épargne ?
                 </Typography>
                 <Typography variant="body2" sx={{ color: '#64748B' }}>
-                  Chaque mois, {savingsSummary?.percentage || 0}% de votre chiffre d'affaires est automatiquement
+                  Chaque mois, {savingsSummary?.percentage || 0}% de {isPersonalAccount ? 'vos revenus' : 'votre chiffre d\'affaires'} est automatiquement
                   alloué à l'épargne. Ce montant est ensuite réparti entre vos différentes catégories d'épargne
                   selon leurs pourcentages respectifs. Lorsque vous assignez une transaction à une catégorie d'épargne,
                   le montant est comptabilisé comme dépensé et déduit du solde restant.
