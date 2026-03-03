@@ -38,7 +38,7 @@ import {
   AdminPanelSettings as AdminIcon,
   Visibility as ViewIcon,
 } from '@mui/icons-material';
-import { transactionsAPI, Transaction, bankAPI, Category } from '@/lib/api';
+import { transactionsAPI, Transaction, bankAPI } from '@/lib/api';
 import { useCompanyStore } from '@/store/companyStore';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -78,31 +78,30 @@ export default function DashboardPage() {
   const [txType, setTxType] = useState<'revenue' | 'expense'>('expense');
   const [txAmount, setTxAmount] = useState('');
   const [txDescription, setTxDescription] = useState('');
-  const [txCategories, setTxCategories] = useState<Category[]>([]);
   const [txSaving, setTxSaving] = useState(false);
-
-  // Charger les catégories pour auto-sélection
-  useEffect(() => {
-    if (!isPersonalAccount) return;
-    bankAPI.getCategories(undefined, false).then(res => {
-      setTxCategories(res.data);
-    }).catch(() => {});
-  }, [isPersonalAccount]);
+  const [txError, setTxError] = useState<string | null>(null);
 
   const openTxDialog = (type: 'revenue' | 'expense') => {
     setTxType(type);
     setTxAmount('');
     setTxDescription('');
+    setTxError(null);
     setTxDialogOpen(true);
   };
 
   const handleCreateTransaction = async () => {
     if (!txAmount) return;
-    // Auto-sélectionner la première catégorie du type correspondant
-    const autoCategory = txCategories.find(c => c.type === txType);
-    if (!autoCategory) return;
     setTxSaving(true);
+    setTxError(null);
     try {
+      // Charger les catégories et auto-sélectionner
+      const catRes = await bankAPI.getCategories(txType, false);
+      const autoCategory = catRes.data?.[0];
+      if (!autoCategory) {
+        setTxError('Aucune catégorie trouvée. Veuillez d\'abord créer des catégories.');
+        setTxSaving(false);
+        return;
+      }
       await transactionsAPI.create({
         type: txType,
         amount: parseFloat(txAmount),
@@ -115,8 +114,9 @@ export default function DashboardPage() {
       setRefreshKey(k => k + 1);
       window.dispatchEvent(new CustomEvent('refresh-budget-data'));
       window.dispatchEvent(new CustomEvent('refresh-savings-data'));
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error creating transaction:', err);
+      setTxError(err.response?.data?.detail || 'Erreur lors de l\'enregistrement');
     } finally {
       setTxSaving(false);
     }
@@ -530,6 +530,11 @@ export default function DashboardPage() {
               value={txDescription}
               onChange={(e) => setTxDescription(e.target.value)}
             />
+            {txError && (
+              <Typography variant="caption" sx={{ color: '#EF4444' }}>
+                {txError}
+              </Typography>
+            )}
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2 }}>
             <Button
