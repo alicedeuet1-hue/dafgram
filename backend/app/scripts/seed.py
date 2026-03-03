@@ -22,6 +22,24 @@ def create_tables():
     Base.metadata.create_all(bind=engine)
     print("Database tables created successfully!")
 
+    # Ajouter les colonnes manquantes sur les tables existantes
+    _add_missing_columns()
+
+
+def _add_missing_columns():
+    """Ajouter les colonnes manquantes aux tables existantes (create_all ne le fait pas)"""
+    from sqlalchemy import text
+    inspector = inspect(engine)
+
+    # Vérifier invite_code sur companies
+    if inspector.has_table("companies"):
+        columns = [col['name'] for col in inspector.get_columns("companies")]
+        if 'invite_code' not in columns:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE companies ADD COLUMN invite_code VARCHAR(20)"))
+                conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_companies_invite_code ON companies (invite_code)"))
+            print("Added invite_code column to companies")
+
 def seed_data():
     """Ajouter des données de test"""
     db = SessionLocal()
