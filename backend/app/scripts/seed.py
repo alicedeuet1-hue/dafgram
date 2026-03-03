@@ -1,7 +1,8 @@
 from app.db.database import engine, SessionLocal, Base
 from app.db.models import (
     Company, User, UserRole, Budget, Transaction, Employee, SalesGoal,
-    Document, Category, CategoryRule, BankImport, UserCompany, UserCompanyRole
+    Document, Category, CategoryRule, BankImport, UserCompany, UserCompanyRole,
+    AccountType, TransactionType, BudgetCategory, SavingsCategory,
 )
 from datetime import datetime, timezone
 from sqlalchemy import inspect
@@ -209,9 +210,113 @@ def ensure_demo_users():
         db.close()
 
 
+def migrate_personal_accounts():
+    """Migrer les comptes personnels existants vers le modèle 50/30/20"""
+    db = SessionLocal()
+    try:
+        personal_companies = db.query(Company).filter(
+            Company.account_type == AccountType.PERSONAL
+        ).all()
+
+        if not personal_companies:
+            return
+
+        for company in personal_companies:
+            cid = company.id
+            changed = False
+
+            # 1. Vérifier/créer les catégories Quotidien et Plaisirs
+            for cat_name, cat_color in [("Quotidien", "#3B82F6"), ("Plaisirs", "#8B5CF6")]:
+                existing = db.query(Category).filter(
+                    Category.company_id == cid,
+                    Category.name == cat_name,
+                    Category.type == TransactionType.EXPENSE,
+                ).first()
+                if not existing:
+                    db.add(Category(
+                        company_id=cid,
+                        name=cat_name,
+                        type=TransactionType.EXPENSE,
+                        color=cat_color,
+                    ))
+                    changed = True
+
+            if changed:
+                db.flush()
+
+            # 2. Vérifier/créer les BudgetCategories 50/30/20
+            existing_budgets = db.query(BudgetCategory).filter(
+                BudgetCategory.company_id == cid,
+                BudgetCategory.period_month.is_(None),
+            ).all()
+
+            if not existing_budgets:
+                # Aucun budget permanent → créer les 3
+                for cat_name, pct in [("Quotidien", 50), ("Plaisirs", 30)]:
+                    cat = db.query(Category).filter(
+                        Category.company_id == cid,
+                        Category.name == cat_name,
+                        Category.type == TransactionType.EXPENSE,
+                    ).first()
+                    if cat:
+                        db.add(BudgetCategory(
+                            company_id=cid,
+                            category_id=cat.id,
+                            percentage=pct,
+                            is_savings=False,
+                            period_month=None,
+                            period_year=None,
+                        ))
+
+                # Épargne 20%
+                db.add(BudgetCategory(
+                    company_id=cid,
+                    category_id=None,
+                    percentage=20,
+                    is_savings=True,
+                    period_month=None,
+                    period_year=None,
+                ))
+                changed = True
+
+            # 3. Vérifier/créer les catégories d'épargne
+            existing_savings = db.query(SavingsCategory).filter(
+                SavingsCategory.company_id == cid,
+            ).count()
+
+            if existing_savings == 0:
+                for name, desc, color, pct in [
+                    ("Fonds d'urgence", "Réserve pour les imprévus", "#EF4444", 40),
+                    ("Vacances", "Budget voyages et vacances", "#3B82F6", 30),
+                    ("Projets", "Projets personnels à financer", "#8B5CF6", 30),
+                ]:
+                    db.add(SavingsCategory(
+                        company_id=cid,
+                        name=name,
+                        description=desc,
+                        color=color,
+                        percentage=pct,
+                        is_default=True,
+                    ))
+                changed = True
+
+            if changed:
+                print(f"  Migrated personal account: {company.name} (id={cid})")
+
+        db.commit()
+        print("Personal accounts migration complete.")
+
+    except Exception as e:
+        print(f"Error migrating personal accounts: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
+
 def main():
     create_tables()
     seed_data()
+    migrate_personal_accounts()
 
 if __name__ == "__main__":
     import sys
