@@ -17,35 +17,15 @@ function getApiBase(): string {
 export const API_BASE_URL = getApiBase();
 
 // Instance axios avec baseURL dynamique
-const resolvedBase = getApiBase();
-if (typeof window !== 'undefined') {
-  console.log('[DafGram API] baseURL =', resolvedBase);
-}
 export const api = axios.create({
-  baseURL: resolvedBase,
+  baseURL: getApiBase(),
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Intercepteur : force HTTPS + ajoute le token JWT
+// Intercepteur : ajoute le token JWT
 api.interceptors.request.use((config) => {
-  // Forcer HTTPS si la page est en HTTPS (dernier filet de sécurité)
-  if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
-    if (config.baseURL && config.baseURL.startsWith('http://')) {
-      console.warn('[DafGram API] Fixing http:// baseURL to https://', config.baseURL);
-      config.baseURL = config.baseURL.replace('http://', 'https://');
-    }
-    if (config.url && config.url.startsWith('http://')) {
-      console.warn('[DafGram API] Fixing http:// url to https://', config.url);
-      config.url = config.url.replace('http://', 'https://');
-    }
-  }
-
-  if (typeof window !== 'undefined') {
-    console.log('[DafGram API] →', config.method?.toUpperCase(), config.baseURL, config.url);
-  }
-
   const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
