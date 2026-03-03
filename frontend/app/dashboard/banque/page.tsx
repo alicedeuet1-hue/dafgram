@@ -700,10 +700,10 @@ export default function ComptabilitePage() {
       <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <Typography variant="h4" gutterBottom sx={{ fontWeight: 700 }}>
-            Banque
+            {isPersonalAccount ? 'Transactions' : 'Banque'}
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Gérez vos comptes et transactions
+            {isPersonalAccount ? 'Gérez vos revenus et dépenses' : 'Gérez vos comptes et transactions'}
           </Typography>
         </div>
         <Box sx={{ display: 'flex', gap: 2 }}>

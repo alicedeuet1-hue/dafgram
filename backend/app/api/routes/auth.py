@@ -15,7 +15,8 @@ from authlib.integrations.starlette_client import OAuth
 from app.db.database import get_db
 from app.db.models import (
     User, UserRole, Company, UserCompany, UserCompanyRole,
-    AccountType, SubscriptionPlan, Category, TransactionType, SavingsCategory
+    AccountType, SubscriptionPlan, Category, TransactionType, SavingsCategory,
+    BudgetCategory,
 )
 from app.core.config import settings
 
@@ -109,8 +110,8 @@ def _seed_personal_defaults(db: Session, company_id: int):
     """Créer les catégories par défaut pour un compte personnel."""
     # Catégories de dépenses personnelles (règle 50/30/20)
     expense_categories = [
-        {"name": "Quotidien", "color": "#3B82F6"},     # 50% - besoins essentiels
-        {"name": "Plaisirs", "color": "#8B5CF6"},       # 30% - envies, loisirs
+        {"name": "Quotidien", "color": "#3B82F6", "budget_pct": 50},
+        {"name": "Plaisirs", "color": "#8B5CF6", "budget_pct": 30},
     ]
     for cat_data in expense_categories:
         db.add(Category(
@@ -134,7 +135,37 @@ def _seed_personal_defaults(db: Session, company_id: int):
             color=cat_data["color"],
         ))
 
-    # Catégories d'épargne personnelles
+    # Flush pour obtenir les IDs des catégories
+    db.flush()
+
+    # Créer les BudgetCategories avec les pourcentages 50/30/20
+    for cat_data in expense_categories:
+        category = db.query(Category).filter(
+            Category.company_id == company_id,
+            Category.name == cat_data["name"],
+            Category.type == TransactionType.EXPENSE,
+        ).first()
+        if category:
+            db.add(BudgetCategory(
+                company_id=company_id,
+                category_id=category.id,
+                percentage=cat_data["budget_pct"],
+                is_savings=False,
+                period_month=None,
+                period_year=None,
+            ))
+
+    # Budget épargne (20%)
+    db.add(BudgetCategory(
+        company_id=company_id,
+        category_id=None,
+        percentage=20,
+        is_savings=True,
+        period_month=None,
+        period_year=None,
+    ))
+
+    # Catégories d'épargne personnelles (sous-catégories du 20%)
     savings = [
         {"name": "Fonds d'urgence", "description": "Réserve pour les imprévus", "color": "#EF4444", "percentage": 40},
         {"name": "Vacances", "description": "Budget voyages et vacances", "color": "#3B82F6", "percentage": 30},
