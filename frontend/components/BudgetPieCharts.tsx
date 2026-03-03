@@ -2354,78 +2354,114 @@ export default function BudgetPieCharts({ onCategoryClick, currentDate: external
           {selectedSubcategory ? (
             // Vue des transactions pour une sous-catégorie
             <Box>
-              {/* Résumé revenus/dépenses */}
-              <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-                <Card sx={{ flex: 1, bgcolor: '#10B98110', borderRadius: 2 }}>
-                  <CardContent sx={{ py: 2 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <TrendingUpIcon sx={{ color: '#10B981' }} />
-                      <Typography variant="body2" color="text.secondary">
-                        Revenus
-                      </Typography>
-                    </Box>
-                    <Typography variant="h5" sx={{ fontWeight: 700, color: '#10B981', mt: 1 }}>
-                      {formatAmount(selectedSubcategory.totalRevenue)}
+              {isPersonalAccount ? (
+                // Profil personnel : vue simplifiée avec résumé et bouton d'enregistrement
+                <Box>
+                  <Box sx={{ textAlign: 'center', p: 3, bgcolor: '#F9FAFB', borderRadius: 2, mb: 3 }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                      Budget alloué
                     </Typography>
-                  </CardContent>
-                </Card>
-                <Card sx={{ flex: 1, bgcolor: '#EF444410', borderRadius: 2 }}>
-                  <CardContent sx={{ py: 2 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <TrendingDownIcon sx={{ color: '#EF4444' }} />
-                      <Typography variant="body2" color="text.secondary">
-                        Dépenses
-                      </Typography>
-                    </Box>
-                    <Typography variant="h5" sx={{ fontWeight: 700, color: '#EF4444', mt: 1 }}>
-                      {formatAmount(selectedSubcategory.totalExpense)}
+                    <Typography variant="h4" sx={{ fontWeight: 700, color: selectedSubcategory.subcategory.category?.color || '#6B7280' }}>
+                      {formatAmount(selectedSubcategory.subcategory.allocated_amount)}
                     </Typography>
-                  </CardContent>
-                </Card>
-              </Box>
-
-              {/* Liste des transactions */}
-              {loadingTransactions ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                  <CircularProgress />
+                    <Box sx={{ display: 'flex', justifyContent: 'center', gap: 3, mt: 2 }}>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary">Dépensé</Typography>
+                        <Typography variant="body1" sx={{ fontWeight: 600, color: '#EF4444' }}>
+                          {formatAmount(selectedSubcategory.subcategory.spent_amount)}
+                        </Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary">Restant</Typography>
+                        <Typography variant="body1" sx={{ fontWeight: 600, color: '#10B981' }}>
+                          {formatAmount(selectedSubcategory.subcategory.remaining_amount)}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Box>
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                      Utilisez les boutons du tableau de bord pour enregistrer une dépense ou un revenu.
+                    </Typography>
+                  </Box>
                 </Box>
-              ) : selectedSubcategory.transactions.length > 0 ? (
-                <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow sx={{ bgcolor: '#F9FAFB' }}>
-                        <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>
-                        <TableCell sx={{ fontWeight: 600 }}>Description</TableCell>
-                        <TableCell sx={{ fontWeight: 600 }} align="right">Montant</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {selectedSubcategory.transactions.map((tx) => (
-                        <TableRow key={tx.id} hover>
-                          <TableCell>
-                            {format(new Date(tx.transaction_date), 'dd/MM/yyyy')}
-                          </TableCell>
-                          <TableCell>{tx.description}</TableCell>
-                          <TableCell
-                            align="right"
-                            sx={{
-                              fontWeight: 600,
-                              color: tx.type === 'revenue' ? '#10B981' : '#EF4444',
-                            }}
-                          >
-                            {tx.type === 'revenue' ? '+' : '-'}{formatAmount(tx.amount)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
               ) : (
-                <Box sx={{ textAlign: 'center', py: 4 }}>
-                  <ReceiptIcon sx={{ fontSize: 48, color: '#E5E7EB', mb: 1 }} />
-                  <Typography color="text.secondary">
-                    Aucune transaction pour ce mois
-                  </Typography>
+                // Profil business : vue complète avec transactions
+                <Box>
+                  {/* Résumé revenus/dépenses */}
+                  <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+                    <Card sx={{ flex: 1, bgcolor: '#10B98110', borderRadius: 2 }}>
+                      <CardContent sx={{ py: 2 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <TrendingUpIcon sx={{ color: '#10B981' }} />
+                          <Typography variant="body2" color="text.secondary">
+                            Revenus
+                          </Typography>
+                        </Box>
+                        <Typography variant="h5" sx={{ fontWeight: 700, color: '#10B981', mt: 1 }}>
+                          {formatAmount(selectedSubcategory.totalRevenue)}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                    <Card sx={{ flex: 1, bgcolor: '#EF444410', borderRadius: 2 }}>
+                      <CardContent sx={{ py: 2 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <TrendingDownIcon sx={{ color: '#EF4444' }} />
+                          <Typography variant="body2" color="text.secondary">
+                            Dépenses
+                          </Typography>
+                        </Box>
+                        <Typography variant="h5" sx={{ fontWeight: 700, color: '#EF4444', mt: 1 }}>
+                          {formatAmount(selectedSubcategory.totalExpense)}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Box>
+
+                  {/* Liste des transactions */}
+                  {loadingTransactions ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                      <CircularProgress />
+                    </Box>
+                  ) : selectedSubcategory.transactions.length > 0 ? (
+                    <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow sx={{ bgcolor: '#F9FAFB' }}>
+                            <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>
+                            <TableCell sx={{ fontWeight: 600 }}>Description</TableCell>
+                            <TableCell sx={{ fontWeight: 600 }} align="right">Montant</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {selectedSubcategory.transactions.map((tx) => (
+                            <TableRow key={tx.id} hover>
+                              <TableCell>
+                                {format(new Date(tx.transaction_date), 'dd/MM/yyyy')}
+                              </TableCell>
+                              <TableCell>{tx.description}</TableCell>
+                              <TableCell
+                                align="right"
+                                sx={{
+                                  fontWeight: 600,
+                                  color: tx.type === 'revenue' ? '#10B981' : '#EF4444',
+                                }}
+                              >
+                                {tx.type === 'revenue' ? '+' : '-'}{formatAmount(tx.amount)}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  ) : (
+                    <Box sx={{ textAlign: 'center', py: 4 }}>
+                      <ReceiptIcon sx={{ fontSize: 48, color: '#E5E7EB', mb: 1 }} />
+                      <Typography color="text.secondary">
+                        Aucune transaction pour ce mois
+                      </Typography>
+                    </Box>
+                  )}
                 </Box>
               )}
             </Box>
