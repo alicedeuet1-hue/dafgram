@@ -20,8 +20,14 @@ export const api = axios.create({
   },
 });
 
-// Intercepteur pour ajouter le token JWT et logger les requêtes
+// Intercepteur pour ajouter le token JWT et forcer HTTPS en production
 api.interceptors.request.use((config) => {
+  // Forcer HTTPS si la page est servie en HTTPS (évite Mixed Content)
+  if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
+    if (config.baseURL?.startsWith('http://')) {
+      config.baseURL = config.baseURL.replace('http://', 'https://');
+    }
+  }
   const token = localStorage.getItem('access_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
