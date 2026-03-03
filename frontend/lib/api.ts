@@ -1,17 +1,24 @@
 import axios from 'axios';
 
-// URL complète du backend — utilisée uniquement pour les URLs d'images/fichiers (src d'img)
-// Pour les appels API, le baseURL est défini dynamiquement dans l'intercepteur
-let API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
-if (API_BASE_URL.includes('dafgram.com')) {
-  API_BASE_URL = API_BASE_URL.replace('http://', 'https://');
+// Déterminer l'URL de l'API au moment de l'exécution du module
+// Côté navigateur : dériver le protocole depuis window.location (HTTPS en prod)
+// Côté SSR : utiliser la variable d'environnement
+function getApiBase(): string {
+  if (typeof window !== 'undefined') {
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (isLocal) return 'http://localhost:8000';
+    // Utiliser le même protocole que la page → évite Mixed Content
+    return window.location.protocol + '//api.dafgram.com';
+  }
+  return process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
 }
-export { API_BASE_URL };
 
-// Instance axios SANS baseURL — les requêtes /api/* vont au même domaine
-// et sont proxiées vers le backend par les rewrites Next.js (next.config.js)
-// Cela élimine les erreurs Mixed Content car tout reste en same-origin.
+// URL pour les images/fichiers (src d'img)
+export const API_BASE_URL = getApiBase();
+
+// Instance axios avec baseURL dynamique
 export const api = axios.create({
+  baseURL: getApiBase(),
   headers: {
     'Content-Type': 'application/json',
   },
