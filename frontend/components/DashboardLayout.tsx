@@ -196,17 +196,6 @@ export default function DashboardLayout({ children }: Props) {
   const menuItems = isPersonalAccount
     ? [
         { text: 'Tableau de bord', icon: <DashboardIcon sx={{ fontSize: 20 }} />, path: '/dashboard' },
-        { text: 'Transactions', icon: <TransactionsIcon />, path: '/dashboard/banque' },
-        {
-          text: 'Budget',
-          icon: <BudgetIcon sx={{ fontSize: 20 }} />,
-          path: '/dashboard/budget',
-          hasSubmenu: true,
-          submenu: [
-            { text: 'Budgétisation', path: '/dashboard/budget/charges' },
-            { text: 'Épargne', path: '/dashboard/budget/epargne' },
-          ]
-        },
       ]
     : [
         { text: 'Tableau de bord', icon: <DashboardIcon sx={{ fontSize: 20 }} />, path: '/dashboard' },
@@ -384,91 +373,6 @@ export default function DashboardLayout({ children }: Props) {
         </Typography>
       </Box>
       <Divider />
-
-      {/* Company selector - liste directe */}
-      <Box sx={{ px: 2, py: 1 }}>
-        <Typography variant="caption" sx={{ color: '#9CA3AF', fontWeight: 500 }}>
-          MES ESPACES
-        </Typography>
-      </Box>
-      {userCompanies.map((uc) => (
-        <MenuItem
-          key={uc.company.id}
-          onClick={() => {
-            if (currentCompany?.id !== uc.company.id) {
-              handleUserMenuCloseImmediate();
-              handleSwitchCompany(uc.company.id);
-            }
-          }}
-          selected={currentCompany?.id === uc.company.id}
-          sx={{
-            py: 1,
-            px: 2,
-            '&.Mui-selected': {
-              bgcolor: '#FEF9E7',
-            },
-          }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Box
-              sx={{
-                width: 24,
-                height: 24,
-                borderRadius: 1,
-                bgcolor: uc.company.logo_url ? 'transparent' : '#F5C518',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                overflow: 'hidden',
-              }}
-            >
-              {uc.company.logo_url ? (
-                <img
-                  src={`http://localhost:8000${uc.company.logo_url}`}
-                  alt="Logo"
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                />
-              ) : uc.company.account_type === 'personal' ? (
-                <PersonIcon sx={{ color: '#1A1A1A', fontSize: 14 }} />
-              ) : (
-                <BusinessIcon sx={{ color: '#1A1A1A', fontSize: 14 }} />
-              )}
-            </Box>
-            <Box>
-              <Typography variant="body2" sx={{ fontWeight: currentCompany?.id === uc.company.id ? 600 : 400 }}>
-                {uc.company.account_type === 'personal' ? 'Personnel' : uc.company.name}
-              </Typography>
-              <Typography variant="caption" sx={{ color: '#9CA3AF', fontSize: '0.65rem' }}>
-                {uc.role === 'owner' ? 'Propriétaire' : uc.role === 'admin' ? 'Admin' : 'Membre'}
-              </Typography>
-            </Box>
-          </Box>
-        </MenuItem>
-      ))}
-      {/* Ajouter une entreprise */}
-      <MenuItem
-        onClick={() => {
-          handleUserMenuCloseImmediate();
-          setPricingDialogOpen(true);
-        }}
-        sx={{
-          py: 1,
-          px: 2,
-          color: '#F5C518',
-          '&:hover': {
-            bgcolor: '#FEF9E7',
-          },
-        }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <AddIcon sx={{ fontSize: 18 }} />
-          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-            Ajouter une entreprise
-          </Typography>
-        </Box>
-      </MenuItem>
-
-      <Divider sx={{ my: 1 }} />
 
       {/* Change avatar */}
       <MenuItem

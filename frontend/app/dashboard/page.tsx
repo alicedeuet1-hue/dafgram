@@ -80,8 +80,12 @@ export default function DashboardPage() {
   // Date actuelle pour le composant BudgetPieCharts
   const currentDate = new Date(selectedYear, selectedMonth - 1, 1);
 
-  // Fetch recent transactions
+  // Fetch recent transactions (pro seulement)
   const fetchRecentTransactions = useCallback(async () => {
+    if (isPersonalAccount) {
+      setTransactionsLoading(false);
+      return;
+    }
     try {
       setTransactionsLoading(true);
       // Dates du mois sélectionné
@@ -102,7 +106,7 @@ export default function DashboardPage() {
     } finally {
       setTransactionsLoading(false);
     }
-  }, [selectedMonth, selectedYear]);
+  }, [selectedMonth, selectedYear, isPersonalAccount]);
 
   useEffect(() => {
     fetchRecentTransactions();
@@ -204,10 +208,10 @@ export default function DashboardPage() {
         </IconButton>
       </Box>
 
-      {/* Grille principale - 2 colonnes */}
+      {/* Grille principale */}
       <Grid container spacing={2} sx={{ mt: 2 }}>
         {/* Colonne gauche: Camemberts + Alertes */}
-        <Grid item xs={12} lg={9}>
+        <Grid item xs={12} lg={isPersonalAccount ? 12 : 9}>
           {/* Sous-grille pour les camemberts */}
           <Grid container spacing={2}>
             <Grid item xs={12} sm={isPersonalAccount ? 6 : 4}>
@@ -238,115 +242,117 @@ export default function DashboardPage() {
           </Box>
         </Grid>
 
-        {/* Colonne droite: Transactions */}
-        <Grid item xs={12} lg={3}>
-          <Card
-            sx={{ borderRadius: 2, bgcolor: theme.palette.background.paper, height: '100%' }}
-            onClick={() => {
-              // Désélectionner les camemberts quand on clique sur Transactions
-              window.dispatchEvent(new CustomEvent('deselect-budget-slice'));
-              window.dispatchEvent(new CustomEvent('deselect-savings-slice'));
-              window.dispatchEvent(new CustomEvent('deselect-time-slice'));
-            }}
-          >
-            <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
-                  Transactions récentes
-                </Typography>
-              </Box>
-
-              {/* Liste mixte des transactions récentes */}
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                {transactionsLoading ? (
-                  // Skeleton loading
-                  [...Array(4)].map((_, i) => (
-                    <Skeleton key={i} variant="rectangular" height={36} sx={{ borderRadius: 1 }} />
-                  ))
-                ) : recentTransactions.length > 0 ? (
-                  recentTransactions.map((transaction) => {
-                    const isRevenue = transaction.type === 'revenue';
-                    const color = isRevenue ? '#10B981' : '#EF4444';
-                    return (
-                      <Box
-                        key={transaction.id}
-                        sx={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          py: 0.75,
-                          px: 1,
-                          borderRadius: 1,
-                          bgcolor: alpha(color, 0.05),
-                          '&:hover': { bgcolor: alpha(color, 0.1) },
-                        }}
-                      >
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, minWidth: 0 }}>
-                          {isRevenue ? (
-                            <TrendingUpIcon sx={{ fontSize: 14, color, flexShrink: 0 }} />
-                          ) : (
-                            <TrendingDownIcon sx={{ fontSize: 14, color, flexShrink: 0 }} />
-                          )}
-                          <Box sx={{ minWidth: 0, flex: 1 }}>
-                            <Typography
-                              variant="caption"
-                              sx={{
-                                fontWeight: 500,
-                                display: 'block',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                                lineHeight: 1.3,
-                              }}
-                            >
-                              {transaction.description || transaction.category?.name || 'Transaction'}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
-                              {format(new Date(transaction.transaction_date), 'dd MMM', { locale: fr })}
-                            </Typography>
-                          </Box>
-                        </Box>
-                        <Typography
-                          variant="caption"
-                          sx={{ fontWeight: 600, color, flexShrink: 0, ml: 1 }}
-                        >
-                          {isRevenue ? '+' : '-'}{formatAmount(Math.abs(transaction.amount))}
-                        </Typography>
-                      </Box>
-                    );
-                  })
-                ) : (
-                  <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>
-                    Aucune transaction ce mois
+        {/* Colonne droite: Transactions (pro seulement) */}
+        {!isPersonalAccount && (
+          <Grid item xs={12} lg={3}>
+            <Card
+              sx={{ borderRadius: 2, bgcolor: theme.palette.background.paper, height: '100%' }}
+              onClick={() => {
+                // Désélectionner les camemberts quand on clique sur Transactions
+                window.dispatchEvent(new CustomEvent('deselect-budget-slice'));
+                window.dispatchEvent(new CustomEvent('deselect-savings-slice'));
+                window.dispatchEvent(new CustomEvent('deselect-time-slice'));
+              }}
+            >
+              <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
+                    Transactions récentes
                   </Typography>
-                )}
-              </Box>
+                </Box>
 
-              {/* Transactions en attente - Module comptabilité */}
-              <Box
-                sx={{
-                  mt: 1.5,
-                  p: 1.5,
-                  bgcolor: alpha(theme.palette.text.disabled, 0.05),
-                  borderRadius: 1.5,
-                  border: `1px dashed ${alpha(theme.palette.text.disabled, 0.2)}`,
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <BuildIcon sx={{ fontSize: 16, color: theme.palette.text.disabled }} />
-                  <Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500, display: 'block' }}>
-                      Transactions en attente
+                {/* Liste mixte des transactions récentes */}
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  {transactionsLoading ? (
+                    // Skeleton loading
+                    [...Array(4)].map((_, i) => (
+                      <Skeleton key={i} variant="rectangular" height={36} sx={{ borderRadius: 1 }} />
+                    ))
+                  ) : recentTransactions.length > 0 ? (
+                    recentTransactions.map((transaction) => {
+                      const isRevenue = transaction.type === 'revenue';
+                      const color = isRevenue ? '#10B981' : '#EF4444';
+                      return (
+                        <Box
+                          key={transaction.id}
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            py: 0.75,
+                            px: 1,
+                            borderRadius: 1,
+                            bgcolor: alpha(color, 0.05),
+                            '&:hover': { bgcolor: alpha(color, 0.1) },
+                          }}
+                        >
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, minWidth: 0 }}>
+                            {isRevenue ? (
+                              <TrendingUpIcon sx={{ fontSize: 14, color, flexShrink: 0 }} />
+                            ) : (
+                              <TrendingDownIcon sx={{ fontSize: 14, color, flexShrink: 0 }} />
+                            )}
+                            <Box sx={{ minWidth: 0, flex: 1 }}>
+                              <Typography
+                                variant="caption"
+                                sx={{
+                                  fontWeight: 500,
+                                  display: 'block',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                  lineHeight: 1.3,
+                                }}
+                              >
+                                {transaction.description || transaction.category?.name || 'Transaction'}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                                {format(new Date(transaction.transaction_date), 'dd MMM', { locale: fr })}
+                              </Typography>
+                            </Box>
+                          </Box>
+                          <Typography
+                            variant="caption"
+                            sx={{ fontWeight: 600, color, flexShrink: 0, ml: 1 }}
+                          >
+                            {isRevenue ? '+' : '-'}{formatAmount(Math.abs(transaction.amount))}
+                          </Typography>
+                        </Box>
+                      );
+                    })
+                  ) : (
+                    <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>
+                      Aucune transaction ce mois
                     </Typography>
-                    <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.65rem' }}>
-                      Disponible dans une prochaine mise à jour avec le module Comptabilité
-                    </Typography>
+                  )}
+                </Box>
+
+                {/* Transactions en attente - Module comptabilité */}
+                <Box
+                  sx={{
+                    mt: 1.5,
+                    p: 1.5,
+                    bgcolor: alpha(theme.palette.text.disabled, 0.05),
+                    borderRadius: 1.5,
+                    border: `1px dashed ${alpha(theme.palette.text.disabled, 0.2)}`,
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <BuildIcon sx={{ fontSize: 16, color: theme.palette.text.disabled }} />
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500, display: 'block' }}>
+                        Transactions en attente
+                      </Typography>
+                      <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.65rem' }}>
+                        Disponible dans une prochaine mise à jour avec le module Comptabilité
+                      </Typography>
+                    </Box>
                   </Box>
                 </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
+              </CardContent>
+            </Card>
+          </Grid>
+        )}
       </Grid>
 
       {/* Revenue Chart (pro) / Expense Summary (personal) */}
