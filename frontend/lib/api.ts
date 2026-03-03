@@ -1,44 +1,44 @@
 import axios from 'axios';
 
-let API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE || (
-  typeof window !== 'undefined' && window.location.hostname !== 'localhost'
-    ? 'https://api.dafgram.com'
-    : 'http://localhost:8000'
-);
-
-// Forcer HTTPS pour les domaines de production (fonctionne côté SSR et client)
+// URL complète du backend — utilisée uniquement pour les URLs d'images/fichiers (src d'img)
+// Pour les appels API, le baseURL est défini dynamiquement dans l'intercepteur
+let API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
 if (API_BASE_URL.includes('dafgram.com')) {
   API_BASE_URL = API_BASE_URL.replace('http://', 'https://');
 }
-
 export { API_BASE_URL };
 
+// Instance axios SANS baseURL — sera défini dynamiquement à chaque requête
 export const api = axios.create({
-  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Intercepteur pour ajouter le token JWT et forcer HTTPS en production
+// Intercepteur : définit le baseURL dynamiquement + ajoute le token JWT
 api.interceptors.request.use((config) => {
-  // Forcer HTTPS si la page est servie en HTTPS (évite Mixed Content)
-  if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
-    if (config.baseURL?.startsWith('http://')) {
-      config.baseURL = config.baseURL.replace('http://', 'https://');
+  // Définir le baseURL à chaque requête en fonction du contexte d'exécution
+  if (typeof window !== 'undefined') {
+    // Côté navigateur : utiliser le protocole de la page pour éviter Mixed Content
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (isLocal) {
+      config.baseURL = 'http://localhost:8000';
+    } else {
+      // Toujours utiliser le même protocole que la page (https: en prod)
+      config.baseURL = window.location.protocol + '//api.dafgram.com';
     }
+  } else {
+    // Côté serveur (SSR) : utiliser la variable d'environnement
+    config.baseURL = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
   }
-  const token = localStorage.getItem('access_token');
+
+  const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   // Pour FormData, laisser axios définir le Content-Type avec le boundary
   if (config.data instanceof FormData) {
     delete config.headers['Content-Type'];
-  }
-  // Debug: log outgoing request data
-  if (config.data) {
-    console.log('DEBUG API: Sending request to', config.url, 'with data:', config.data);
   }
   return config;
 });
