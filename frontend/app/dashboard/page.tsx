@@ -40,6 +40,7 @@ import {
 } from '@mui/icons-material';
 import { transactionsAPI, Transaction, bankAPI } from '@/lib/api';
 import { useCompanyStore } from '@/store/companyStore';
+import { useAuthStore } from '@/store/authStore';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -51,6 +52,7 @@ const MONTH_NAMES = [
 export default function DashboardPage() {
   const theme = useTheme();
   const { currentCompany } = useCompanyStore();
+  const { user } = useAuthStore();
   const isPersonalAccount = currentCompany?.account_type === 'personal';
 
   // État pour la navigation par mois
@@ -94,19 +96,20 @@ export default function DashboardPage() {
     setTxSaving(true);
     setTxError(null);
     try {
-      // Charger les catégories et auto-sélectionner
-      const catRes = await bankAPI.getCategories(txType, false);
-      const autoCategory = catRes.data?.[0];
-      if (!autoCategory) {
-        setTxError('Aucune catégorie trouvée. Veuillez d\'abord créer des catégories.');
-        setTxSaving(false);
-        return;
-      }
+      // Auto-sélectionner la première catégorie du type si disponible
+      let categoryId: number | undefined;
+      try {
+        const catRes = await bankAPI.getCategories(txType, false);
+        if (catRes.data?.length > 0) {
+          categoryId = catRes.data[0].id;
+        }
+      } catch {}
       await transactionsAPI.create({
         type: txType,
         amount: parseFloat(txAmount),
         description: txDescription,
-        category_id: autoCategory.id,
+        category_id: categoryId,
+        company_id: user?.company_id,
         account_type: 'company',
       });
       setTxDialogOpen(false);
