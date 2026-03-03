@@ -742,6 +742,11 @@ async def delete_space(
     if client_ids:
         db.query(ClientAttachment).filter(ClientAttachment.client_id.in_(client_ids)).delete(synchronize_session=False)
 
+    # sales_goals → via employees
+    employee_ids = [e.id for e in db.query(Employee).filter(Employee.company_id == company_id).all()]
+    if employee_ids:
+        db.query(SalesGoal).filter(SalesGoal.employee_id.in_(employee_ids)).delete(synchronize_session=False)
+
     # bank_accounts → via company_settings
     settings = db.query(CompanySettings).filter(CompanySettings.company_id == company_id).first()
     if settings:
@@ -763,7 +768,6 @@ async def delete_space(
     db.query(Document).filter(Document.company_id == company_id).delete(synchronize_session=False)
     db.query(TimeEntry).filter(TimeEntry.company_id == company_id).delete(synchronize_session=False)
     db.query(TimeCategory).filter(TimeCategory.company_id == company_id).delete(synchronize_session=False)
-    db.query(SalesGoal).filter(SalesGoal.company_id == company_id).delete(synchronize_session=False)
     db.query(Employee).filter(Employee.company_id == company_id).delete(synchronize_session=False)
     db.query(Transaction).filter(Transaction.company_id == company_id).delete(synchronize_session=False)
     db.query(Budget).filter(Budget.company_id == company_id).delete(synchronize_session=False)
