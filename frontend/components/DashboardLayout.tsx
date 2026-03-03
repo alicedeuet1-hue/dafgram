@@ -52,6 +52,7 @@ import {
   ContentCopy as CopyIcon,
   Refresh as RefreshIcon,
   Group as GroupIcon,
+  DeleteOutline as DeleteIcon,
 } from '@mui/icons-material';
 import SubscriptionBanner from './SubscriptionBanner';
 
@@ -83,6 +84,8 @@ export default function DashboardLayout({ children }: Props) {
   const [newSpaceType, setNewSpaceType] = useState<'personal' | 'business'>('business');
   const [dialogLoading, setDialogLoading] = useState(false);
   const [dialogError, setDialogError] = useState<string | null>(null);
+  const [deleteSpaceDialogOpen, setDeleteSpaceDialogOpen] = useState(false);
+  const [spaceToDelete, setSpaceToDelete] = useState<{ id: number; name: string } | null>(null);
 
   // Refs pour l'upload d'images
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -665,6 +668,38 @@ export default function DashboardLayout({ children }: Props) {
           </Box>
         </MenuItem>
       )}
+      {/* Supprimer cet espace (si plus d'un espace) */}
+      {userCompanies.length > 1 && (
+        <>
+          <Divider sx={{ my: 0.5 }} />
+          <MenuItem
+            onClick={() => {
+              handleCompanyMenuCloseImmediate();
+              setDialogError(null);
+              setSpaceToDelete({
+                id: currentCompany?.id || 0,
+                name: isPersonalAccount ? 'Personnel' : (currentCompany?.name || 'Espace'),
+              });
+              setDeleteSpaceDialogOpen(true);
+            }}
+            sx={{
+              py: 1,
+              px: 2,
+              color: '#EF4444',
+              '&:hover': {
+                bgcolor: resolvedMode === 'dark' ? 'rgba(239, 68, 68, 0.1)' : '#FEF2F2',
+              },
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <DeleteIcon sx={{ fontSize: 18 }} />
+              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                Supprimer cet espace
+              </Typography>
+            </Box>
+          </MenuItem>
+        </>
+      )}
     </Menu>
   );
 
@@ -722,6 +757,26 @@ export default function DashboardLayout({ children }: Props) {
       setInviteCode(res.data.invite_code);
     } catch {
       setDialogError("Erreur lors de la régénération");
+    }
+  };
+
+  // Handler: Supprimer un espace
+  const handleDeleteSpace = async () => {
+    if (!spaceToDelete) return;
+    setDialogLoading(true);
+    setDialogError(null);
+    try {
+      await companiesAPI.deleteSpace(spaceToDelete.id);
+      await fetchCurrentCompany();
+      await fetchUserCompanies();
+      setDeleteSpaceDialogOpen(false);
+      setSpaceToDelete(null);
+      router.push('/dashboard');
+      router.refresh();
+    } catch (err: any) {
+      setDialogError(err.response?.data?.detail || "Erreur lors de la suppression");
+    } finally {
+      setDialogLoading(false);
     }
   };
 
@@ -863,6 +918,43 @@ export default function DashboardLayout({ children }: Props) {
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setInviteCodeDialogOpen(false)}>Fermer</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog: Supprimer un espace */}
+      <Dialog
+        open={deleteSpaceDialogOpen}
+        onClose={() => { setDeleteSpaceDialogOpen(false); setDialogError(null); }}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontWeight: 600, color: '#EF4444' }}>
+          Supprimer l'espace
+        </DialogTitle>
+        <DialogContent>
+          {dialogError && (
+            <Typography variant="body2" color="error" sx={{ mb: 2 }}>{dialogError}</Typography>
+          )}
+          <Typography variant="body2" color="text.secondary">
+            Êtes-vous sûr de vouloir supprimer l'espace <strong>{spaceToDelete?.name}</strong> ?
+            Toutes les données associées (transactions, budgets, catégories, etc.) seront définitivement supprimées.
+          </Typography>
+          <Typography variant="body2" sx={{ mt: 2, color: '#EF4444', fontWeight: 500 }}>
+            Cette action est irréversible.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => { setDeleteSpaceDialogOpen(false); setDialogError(null); }}>
+            Annuler
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleDeleteSpace}
+            disabled={dialogLoading}
+            sx={{ bgcolor: '#EF4444', color: '#FFFFFF', '&:hover': { bgcolor: '#DC2626' } }}
+          >
+            {dialogLoading ? 'Suppression...' : 'Supprimer'}
+          </Button>
         </DialogActions>
       </Dialog>
 

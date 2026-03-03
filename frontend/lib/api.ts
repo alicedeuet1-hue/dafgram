@@ -318,6 +318,10 @@ export const companiesAPI = {
   // Créer un nouvel espace
   createSpace: (data: { account_type: string; name?: string; email?: string; phone?: string }) =>
     api.post<CompanyInfo>('/api/companies/me/create-space', data),
+
+  // Supprimer un espace
+  deleteSpace: (companyId: number) =>
+    api.delete<{ message: string }>(`/api/companies/me/space/${companyId}`),
 };
 
 // ============== Company Settings (Comptabilité) ==============

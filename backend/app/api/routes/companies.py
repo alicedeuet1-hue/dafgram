@@ -15,7 +15,10 @@ from typing import Optional
 from app.db.database import get_db
 from app.db.models import (
     User, Company, UserCompany, UserCompanyRole, CompanySettings, BankAccount,
-    AccountType, SubscriptionPlan, UserRole
+    AccountType, SubscriptionPlan, UserRole,
+    Budget, Transaction, Employee, SalesGoal, TimeCategory, TimeEntry,
+    Document, Category, CategoryRule, BudgetCategory, BankImport,
+    Client, SavingsCategory, VatRate
 )
 from app.core.security import get_current_active_user
 from app.core.config import settings
@@ -677,6 +680,90 @@ async def create_space(
         _seed_personal_defaults(db, new_company.id)
 
     return new_company
+
+
+@router.delete("/me/space/{company_id}")
+async def delete_space(
+    company_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Supprimer un espace (personnel ou professionnel) dont l'utilisateur est propriétaire"""
+    # Vérifier que l'utilisateur est OWNER de cet espace
+    user_company = db.query(UserCompany).filter(
+        UserCompany.user_id == current_user.id,
+        UserCompany.company_id == company_id
+    ).first()
+
+    if not user_company or user_company.role != UserCompanyRole.OWNER:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Seul le propriétaire peut supprimer cet espace"
+        )
+
+    # Empêcher la suppression du dernier espace
+    user_spaces = db.query(UserCompany).filter(
+        UserCompany.user_id == current_user.id
+    ).count()
+
+    if user_spaces <= 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Impossible de supprimer votre dernier espace"
+        )
+
+    # Si c'est l'espace courant, basculer vers un autre
+    if current_user.current_company_id == company_id:
+        other_uc = db.query(UserCompany).filter(
+            UserCompany.user_id == current_user.id,
+            UserCompany.company_id != company_id
+        ).first()
+        if other_uc:
+            current_user.current_company_id = other_uc.company_id
+
+    # Supprimer toutes les données liées à cet espace
+    from sqlalchemy import text
+    tables_to_clean = [
+        "payment_retries", "subscription_history", "payment_transactions",
+        "bank_accounts", "savings_categories", "company_settings",
+        "vat_rates", "bank_imports", "budget_categories", "category_rules",
+        "categories", "documents", "time_entries", "time_categories",
+        "sales_goals", "employees", "transactions", "budgets",
+        "client_attachments", "invoice_line_items", "invoice_payments",
+        "quote_line_items", "quotes", "invoices", "clients",
+    ]
+
+    for table in tables_to_clean:
+        try:
+            db.execute(text(f"DELETE FROM {table} WHERE company_id = :cid"), {"cid": company_id})
+        except Exception:
+            pass  # Table peut ne pas exister ou ne pas avoir company_id
+
+    # Supprimer client_attachments via clients (pas de company_id direct)
+    try:
+        client_ids = [c.id for c in db.query(Client).filter(Client.company_id == company_id).all()]
+        if client_ids:
+            from app.db.models import ClientAttachment
+            db.query(ClientAttachment).filter(ClientAttachment.client_id.in_(client_ids)).delete(synchronize_session=False)
+    except Exception:
+        pass
+
+    # Mettre à jour les users qui ont cet espace comme company_id principal
+    db.query(User).filter(User.company_id == company_id).update(
+        {"company_id": current_user.current_company_id}, synchronize_session=False
+    )
+
+    # Supprimer les liaisons user_companies pour TOUS les utilisateurs de cet espace
+    db.query(UserCompany).filter(UserCompany.company_id == company_id).delete(synchronize_session=False)
+
+    # Supprimer l'entreprise
+    company = db.query(Company).filter(Company.id == company_id).first()
+    if company:
+        db.delete(company)
+
+    db.commit()
+
+    return {"message": "Espace supprimé avec succès"}
 
 
 # ============ Bank Accounts (RIB) ============
