@@ -684,7 +684,8 @@ export default function DashboardLayout({ children }: Props) {
       await fetchCurrentCompany();
       await fetchUserCompanies();
       setCreateSpaceDialogOpen(false);
-      window.location.href = '/dashboard';
+      router.push('/dashboard');
+      router.refresh();
     } catch (err: any) {
       setDialogError(err.response?.data?.detail || "Erreur lors de la création");
     } finally {
@@ -705,7 +706,8 @@ export default function DashboardLayout({ children }: Props) {
       await fetchCurrentCompany();
       await fetchUserCompanies();
       setJoinCompanyDialogOpen(false);
-      window.location.href = '/dashboard';
+      router.push('/dashboard');
+      router.refresh();
     } catch (err: any) {
       setDialogError(err.response?.data?.detail || "Code d'invitation invalide");
     } finally {
