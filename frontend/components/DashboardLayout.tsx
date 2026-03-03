@@ -134,8 +134,10 @@ export default function DashboardLayout({ children }: Props) {
   const handleSwitchCompany = async (companyId: number) => {
     try {
       await switchCompany(companyId);
-      // Recharger la page pour rafraîchir les données
-      window.location.reload();
+      await fetchUserCompanies();
+      // Naviguer vers le dashboard pour rafraîchir le contexte sans déconnexion
+      router.push('/dashboard');
+      router.refresh();
     } catch (error) {
       console.error('Erreur lors du changement d\'entreprise:', error);
     }
@@ -386,7 +388,7 @@ export default function DashboardLayout({ children }: Props) {
       {/* Company selector - liste directe */}
       <Box sx={{ px: 2, py: 1 }}>
         <Typography variant="caption" sx={{ color: '#9CA3AF', fontWeight: 500 }}>
-          ENTREPRISE
+          MES ESPACES
         </Typography>
       </Box>
       {userCompanies.map((uc) => (
@@ -426,13 +428,15 @@ export default function DashboardLayout({ children }: Props) {
                   alt="Logo"
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 />
+              ) : uc.company.account_type === 'personal' ? (
+                <PersonIcon sx={{ color: '#1A1A1A', fontSize: 14 }} />
               ) : (
                 <BusinessIcon sx={{ color: '#1A1A1A', fontSize: 14 }} />
               )}
             </Box>
             <Box>
               <Typography variant="body2" sx={{ fontWeight: currentCompany?.id === uc.company.id ? 600 : 400 }}>
-                {uc.company.name}
+                {uc.company.account_type === 'personal' ? 'Personnel' : uc.company.name}
               </Typography>
               <Typography variant="caption" sx={{ color: '#9CA3AF', fontSize: '0.65rem' }}>
                 {uc.role === 'owner' ? 'Propriétaire' : uc.role === 'admin' ? 'Admin' : 'Membre'}
@@ -563,13 +567,15 @@ export default function DashboardLayout({ children }: Props) {
                   alt="Logo"
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 />
+              ) : uc.company.account_type === 'personal' ? (
+                <PersonIcon sx={{ color: '#1A1A1A', fontSize: 14 }} />
               ) : (
                 <BusinessIcon sx={{ color: '#1A1A1A', fontSize: 14 }} />
               )}
             </Box>
             <Box>
               <Typography variant="body2" sx={{ fontWeight: currentCompany?.id === uc.company.id ? 600 : 400 }}>
-                {uc.company.name}
+                {uc.company.account_type === 'personal' ? 'Personnel' : uc.company.name}
               </Typography>
             </Box>
             {currentCompany?.id === uc.company.id && (
@@ -1124,6 +1130,8 @@ export default function DashboardLayout({ children }: Props) {
                         alt="Logo"
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                       />
+                    ) : isPersonalAccount ? (
+                      <PersonIcon sx={{ color: '#1A1A1A', fontSize: 14 }} />
                     ) : (
                       <BusinessIcon sx={{ color: '#1A1A1A', fontSize: 12 }} />
                     )}
@@ -1139,7 +1147,7 @@ export default function DashboardLayout({ children }: Props) {
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    {isPersonalAccount ? 'Mon budget' : (currentCompany?.name || 'Entreprise')}
+                    {isPersonalAccount ? 'Personnel' : (currentCompany?.name || 'Entreprise')}
                   </Typography>
                   <KeyboardArrowDown
                     sx={{
