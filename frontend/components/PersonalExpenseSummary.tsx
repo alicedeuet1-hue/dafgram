@@ -231,22 +231,6 @@ export default function PersonalExpenseSummary({ currentDate }: Props) {
             })}
           </Box>
 
-          {/* No revenue hint */}
-          {totalRevenue === 0 && (
-            <Box
-              sx={{
-                mt: 2,
-                p: 1.5,
-                borderRadius: 2,
-                bgcolor: alpha('#F5C518', 0.08),
-                border: `1px solid ${alpha('#F5C518', 0.2)}`,
-              }}
-            >
-              <Typography variant="caption" sx={{ color: '#F5C518' }}>
-                Ajoutez vos revenus du mois dans les transactions pour voir la répartition de votre budget.
-              </Typography>
-            </Box>
-          )}
         </CardContent>
       </Card>
     </Box>

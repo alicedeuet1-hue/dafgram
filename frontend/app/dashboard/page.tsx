@@ -21,6 +21,17 @@ import {
   Skeleton,
   Tooltip,
   Chip,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  CircularProgress,
 } from '@mui/material';
 import {
   ChevronLeft,
@@ -30,8 +41,10 @@ import {
   Build as BuildIcon,
   AdminPanelSettings as AdminIcon,
   Visibility as ViewIcon,
+  Add as AddIcon,
 } from '@mui/icons-material';
-import { transactionsAPI, Transaction } from '@/lib/api';
+import { transactionsAPI, Transaction, bankAPI, Category } from '@/lib/api';
+import { formatCurrency } from '@/lib/currency';
 import { useCompanyStore } from '@/store/companyStore';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -62,6 +75,58 @@ export default function DashboardPage() {
     }
     return false;
   });
+
+  // Clé de rafraîchissement pour forcer le re-render des composants après ajout de transaction
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  // Transaction rapide (comptes personnels)
+  const [txDialogOpen, setTxDialogOpen] = useState(false);
+  const [txType, setTxType] = useState<'revenue' | 'expense'>('expense');
+  const [txAmount, setTxAmount] = useState('');
+  const [txDescription, setTxDescription] = useState('');
+  const [txCategoryId, setTxCategoryId] = useState<number>(0);
+  const [txCategories, setTxCategories] = useState<Category[]>([]);
+  const [txSaving, setTxSaving] = useState(false);
+  const currency = currentCompany?.currency || 'EUR';
+
+  // Charger les catégories pour le dialog
+  useEffect(() => {
+    if (!isPersonalAccount) return;
+    bankAPI.getCategories(undefined, false).then(res => {
+      setTxCategories(res.data);
+    }).catch(() => {});
+  }, [isPersonalAccount]);
+
+  const openTxDialog = (type: 'revenue' | 'expense') => {
+    setTxType(type);
+    setTxAmount('');
+    setTxDescription('');
+    setTxCategoryId(0);
+    setTxDialogOpen(true);
+  };
+
+  const handleCreateTransaction = async () => {
+    if (!txAmount || txCategoryId === 0) return;
+    setTxSaving(true);
+    try {
+      await transactionsAPI.create({
+        type: txType,
+        amount: parseFloat(txAmount),
+        description: txDescription,
+        category_id: txCategoryId,
+        account_type: 'company',
+      });
+      setTxDialogOpen(false);
+      // Rafraîchir les données du dashboard
+      setRefreshKey(k => k + 1);
+      window.dispatchEvent(new CustomEvent('refresh-budget-data'));
+      window.dispatchEvent(new CustomEvent('refresh-savings-data'));
+    } catch (err) {
+      console.error('Error creating transaction:', err);
+    } finally {
+      setTxSaving(false);
+    }
+  };
 
   // Mode admin (affiche les contrôles d'édition)
   const [adminMode, setAdminMode] = useState<boolean>(() => {
@@ -206,6 +271,45 @@ export default function DashboardPage() {
         >
           <ChevronRight />
         </IconButton>
+
+        {/* Boutons rapides revenus/dépenses (personnel) */}
+        {isPersonalAccount && (
+          <>
+            <Box sx={{ flex: 1 }} />
+            <Button
+              variant="contained"
+              startIcon={<TrendingUpIcon sx={{ fontSize: 18 }} />}
+              onClick={() => openTxDialog('revenue')}
+              size="small"
+              sx={{
+                bgcolor: '#10B981',
+                color: '#fff',
+                fontWeight: 600,
+                borderRadius: 2,
+                textTransform: 'none',
+                '&:hover': { bgcolor: '#059669' },
+              }}
+            >
+              + Revenu
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<TrendingDownIcon sx={{ fontSize: 18 }} />}
+              onClick={() => openTxDialog('expense')}
+              size="small"
+              sx={{
+                bgcolor: '#EF4444',
+                color: '#fff',
+                fontWeight: 600,
+                borderRadius: 2,
+                textTransform: 'none',
+                '&:hover': { bgcolor: '#DC2626' },
+              }}
+            >
+              + Dépense
+            </Button>
+          </>
+        )}
       </Box>
 
       {/* Grille principale */}
@@ -216,6 +320,7 @@ export default function DashboardPage() {
           <Grid container spacing={2}>
             <Grid item xs={12} sm={isPersonalAccount ? 6 : 4}>
               <BudgetPieCharts
+                key={`budget-${refreshKey}`}
                 currentDate={currentDate}
                 hideUnallocated={hideUnallocated}
                 renderMode="pie-only"
@@ -223,6 +328,7 @@ export default function DashboardPage() {
             </Grid>
             <Grid item xs={12} sm={isPersonalAccount ? 6 : 4}>
               <SavingsPieCharts
+                key={`savings-${refreshKey}`}
                 currentDate={currentDate}
                 renderMode="pie-only"
               />
@@ -357,7 +463,7 @@ export default function DashboardPage() {
 
       {/* Revenue Chart (pro) / Expense Summary (personal) */}
       {isPersonalAccount ? (
-        <PersonalExpenseSummary currentDate={currentDate} />
+        <PersonalExpenseSummary key={`expense-${refreshKey}`} currentDate={currentDate} />
       ) : (
         <RevenueChart currentDate={currentDate} adminMode={adminMode} />
       )}
@@ -402,6 +508,79 @@ export default function DashboardPage() {
 
       {/* Suivi Vendeur (pro seulement) */}
       {!isPersonalAccount && <SalesTracker adminMode={adminMode} />}
+
+      {/* Dialog transaction rapide (personnel) */}
+      {isPersonalAccount && (
+        <Dialog
+          open={txDialogOpen}
+          onClose={() => !txSaving && setTxDialogOpen(false)}
+          maxWidth="xs"
+          fullWidth
+        >
+          <DialogTitle sx={{ fontWeight: 700, color: txType === 'revenue' ? '#10B981' : '#EF4444' }}>
+            {txType === 'revenue' ? 'Nouveau revenu' : 'Nouvelle dépense'}
+          </DialogTitle>
+          <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}>
+            <TextField
+              fullWidth
+              label="Montant"
+              type="number"
+              value={txAmount}
+              onChange={(e) => setTxAmount(e.target.value)}
+              autoFocus
+              inputProps={{ min: 0, step: '0.01' }}
+            />
+            <FormControl fullWidth>
+              <InputLabel>Catégorie</InputLabel>
+              <Select
+                value={txCategoryId}
+                label="Catégorie"
+                onChange={(e) => setTxCategoryId(Number(e.target.value))}
+              >
+                <MenuItem value={0} disabled>Choisir une catégorie</MenuItem>
+                {txCategories
+                  .filter(c => c.type === txType)
+                  .map(c => (
+                    <MenuItem key={c.id} value={c.id}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: c.color || '#6B7280' }} />
+                        {c.name}
+                      </Box>
+                    </MenuItem>
+                  ))
+                }
+              </Select>
+            </FormControl>
+            <TextField
+              fullWidth
+              label="Description (optionnel)"
+              value={txDescription}
+              onChange={(e) => setTxDescription(e.target.value)}
+            />
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button
+              onClick={() => setTxDialogOpen(false)}
+              disabled={txSaving}
+              sx={{ color: 'text.secondary' }}
+            >
+              Annuler
+            </Button>
+            <Button
+              variant="contained"
+              onClick={handleCreateTransaction}
+              disabled={txSaving || !txAmount || txCategoryId === 0}
+              sx={{
+                bgcolor: txType === 'revenue' ? '#10B981' : '#EF4444',
+                fontWeight: 600,
+                '&:hover': { bgcolor: txType === 'revenue' ? '#059669' : '#DC2626' },
+              }}
+            >
+              {txSaving ? <CircularProgress size={20} sx={{ color: '#fff' }} /> : 'Enregistrer'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
     </DashboardLayout>
   );
 }
