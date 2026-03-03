@@ -77,6 +77,10 @@ export interface CompanyData {
   country?: string;
   vat_number?: string;
   account_type?: string;
+  legal_form?: string;
+  year_created?: string;
+  expertise_domain?: string;
+  contact_name?: string;
 }
 
 export interface RegisterData {
