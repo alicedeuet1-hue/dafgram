@@ -114,7 +114,7 @@ export default function SettingsPage() {
       await fetchCurrentCompany();
       setSuccess('Logo mis à jour avec succès');
     } catch (err: any) {
-      setError('Erreur lors du téléchargement du logo');
+      setError(err.response?.data?.detail || 'Erreur lors du téléchargement du logo');
     } finally {
       setIsUploadingLogo(false);
     }

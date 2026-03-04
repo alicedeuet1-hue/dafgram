@@ -114,9 +114,10 @@ export default function DashboardLayout({ children }: Props) {
 
     try {
       await authAPI.uploadAvatar(file);
-      fetchUser(); // Rafraîchir pour voir le nouvel avatar
-    } catch (error) {
+      await fetchUser(); // Rafraîchir pour voir le nouvel avatar
+    } catch (error: any) {
       console.error('Error uploading avatar:', error);
+      alert(error.response?.data?.detail || 'Erreur lors du téléchargement de la photo');
     }
   };
 

@@ -1,5 +1,6 @@
 """Utilitaire pour l'upload de fichiers vers AWS S3"""
 import boto3
+from botocore.exceptions import ClientError
 import uuid
 from fastapi import UploadFile
 from app.core.config import settings
@@ -36,12 +37,18 @@ async def upload_to_s3(file: UploadFile, folder: str = "uploads") -> str:
     s3 = get_s3_client()
     contents = await file.read()
 
-    s3.put_object(
+    put_args = dict(
         Bucket=settings.AWS_S3_BUCKET,
         Key=filename,
         Body=contents,
         ContentType=file.content_type or "image/png",
     )
+
+    # Essayer avec ACL public-read, sinon sans (bucket policy gère l'accès)
+    try:
+        s3.put_object(**put_args, ACL="public-read")
+    except ClientError:
+        s3.put_object(**put_args)
 
     return f"https://{settings.AWS_S3_BUCKET}.s3.{settings.AWS_S3_REGION}.amazonaws.com/{filename}"
 

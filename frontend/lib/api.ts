@@ -126,9 +126,7 @@ export const authAPI = {
   uploadAvatar: (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
-    return api.post('/api/auth/me/avatar', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    return api.post('/api/auth/me/avatar', formData);
   },
   deleteAvatar: () => api.delete('/api/auth/me/avatar'),
 };
