@@ -153,6 +153,8 @@ export default function BudgetPieCharts({ onCategoryClick, currentDate: external
   // État pour le dialog de personnalisation des pourcentages
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [editPercentages, setEditPercentages] = useState<Record<number, number>>({});
+  // Keyed by category_id (not budget_id): percentage within parent (0-100)
+  const [editSubPercentages, setEditSubPercentages] = useState<Record<number, number>>({});
   const [savingPercentages, setSavingPercentages] = useState(false);
 
   // État pour le sélecteur de mois
@@ -1922,9 +1924,35 @@ export default function BudgetPieCharts({ onCategoryClick, currentDate: external
                           e.stopPropagation();
                           const pcts: Record<number, number> = {};
                           (summary?.categories || []).forEach(c => {
-                            pcts[c.id] = c.percentage;
+                            if (!c.category?.parent_id) {
+                              pcts[c.id] = c.percentage;
+                            }
                           });
                           setEditPercentages(pcts);
+                          // Initialiser les pourcentages des sous-catégories (keyed by category_id)
+                          const subPcts: Record<number, number> = {};
+                          // D'abord, récupérer les % existants depuis les BudgetCategory
+                          (summary?.categories || []).forEach(c => {
+                            if (c.category?.parent_id && c.category_id) {
+                              subPcts[c.category_id] = c.percentage;
+                            }
+                          });
+                          // Ensuite, pour chaque parent, ajouter les sous-catégories manquantes
+                          (summary?.categories || []).filter(c => !c.is_savings && c.category && !c.category.parent_id).forEach(parentBudget => {
+                            if (!parentBudget.category_id) return;
+                            const subs = getSubcategoriesForParent(parentBudget.category_id);
+                            const existingIds = new Set(Object.keys(subPcts).map(Number));
+                            const missingSubs = subs.filter(s => !existingIds.has(s.id));
+                            if (missingSubs.length > 0) {
+                              const existingTotal = subs.filter(s => existingIds.has(s.id)).reduce((sum, s) => sum + (subPcts[s.id] || 0), 0);
+                              const remaining = 100 - existingTotal;
+                              const perSub = Math.round(remaining / missingSubs.length);
+                              missingSubs.forEach((sub, i) => {
+                                subPcts[sub.id] = i === missingSubs.length - 1 ? (remaining - perSub * (missingSubs.length - 1)) : perSub;
+                              });
+                            }
+                          });
+                          setEditSubPercentages(subPcts);
                           setSettingsDialogOpen(true);
                         }}
                         sx={{ color: theme.palette.text.secondary, p: 0.5, zIndex: 10 }}
@@ -3544,7 +3572,7 @@ export default function BudgetPieCharts({ onCategoryClick, currentDate: external
       <Dialog
         open={settingsDialogOpen}
         onClose={() => setSettingsDialogOpen(false)}
-        maxWidth="xs"
+        maxWidth="sm"
         fullWidth
         PaperProps={{ sx: { borderRadius: 3 } }}
       >
@@ -3560,10 +3588,11 @@ export default function BudgetPieCharts({ onCategoryClick, currentDate: external
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
             Ajustez la répartition de votre budget. Le total doit être égal à 100%.
           </Typography>
-          {(summary?.categories || []).map((cat) => {
+          {(summary?.categories || []).filter(c => !c.category?.parent_id).map((cat) => {
             const name = cat.is_savings ? 'Épargne' : (cat.category?.name || 'Catégorie');
             const color = cat.is_savings ? '#10B981' : (cat.category?.color || '#6B7280');
             const currentPct = editPercentages[cat.id] ?? cat.percentage;
+            const subs = cat.category_id ? getSubcategoriesForParent(cat.category_id) : [];
 
             return (
               <Box key={cat.id} sx={{ mb: 3 }}>
@@ -3591,6 +3620,52 @@ export default function BudgetPieCharts({ onCategoryClick, currentDate: external
                     '& .MuiSlider-thumb': { width: 20, height: 20 },
                   }}
                 />
+                {/* Sous-catégories */}
+                {subs.length > 0 && (
+                  <Box sx={{ pl: 3, mt: 1, borderLeft: `2px solid ${alpha(color, 0.3)}` }}>
+                    {subs.map(sub => {
+                      const subPct = editSubPercentages[sub.id] ?? 0;
+                      return (
+                        <Box key={sub.id} sx={{ mb: 1.5 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: sub.color }} />
+                              <Typography variant="caption" sx={{ fontWeight: 500 }}>
+                                {sub.name}
+                              </Typography>
+                            </Box>
+                            <Typography variant="caption" sx={{ fontWeight: 600, color: sub.color }}>
+                              {subPct}%
+                            </Typography>
+                          </Box>
+                          <Slider
+                            size="small"
+                            value={subPct}
+                            onChange={(_, value) => {
+                              setEditSubPercentages(prev => ({ ...prev, [sub.id]: value as number }));
+                            }}
+                            min={0}
+                            max={100}
+                            step={5}
+                            sx={{
+                              color: sub.color,
+                              '& .MuiSlider-thumb': { width: 14, height: 14 },
+                              py: 0.5,
+                            }}
+                          />
+                        </Box>
+                      );
+                    })}
+                    {(() => {
+                      const subTotal = subs.reduce((sum, s) => sum + (editSubPercentages[s.id] ?? 0), 0);
+                      return (
+                        <Typography variant="caption" sx={{ color: subTotal === 100 ? '#10B981' : '#EF4444', fontWeight: 600 }}>
+                          Total : {subTotal}%{subTotal !== 100 && ' (doit être 100%)'}
+                        </Typography>
+                      );
+                    })()}
+                  </Box>
+                )}
               </Box>
             );
           })}
@@ -3618,15 +3693,40 @@ export default function BudgetPieCharts({ onCategoryClick, currentDate: external
           </Button>
           <Button
             variant="contained"
-            disabled={savingPercentages || Object.values(editPercentages).reduce((sum, v) => sum + v, 0) !== 100}
+            disabled={(() => {
+              if (savingPercentages) return true;
+              if (Object.values(editPercentages).reduce((sum, v) => sum + v, 0) !== 100) return true;
+              // Vérifier que chaque groupe de sous-catégories fait 100%
+              const parentBudgets = (summary?.categories || []).filter(c => !c.is_savings && c.category && !c.category.parent_id);
+              for (const pb of parentBudgets) {
+                const subs = pb.category_id ? getSubcategoriesForParent(pb.category_id) : [];
+                if (subs.length > 0) {
+                  const subTotal = subs.reduce((sum, s) => sum + (editSubPercentages[s.id] ?? 0), 0);
+                  if (subTotal !== 100) return true;
+                }
+              }
+              return false;
+            })()}
             onClick={async () => {
               setSavingPercentages(true);
               try {
+                // Sauvegarder les pourcentages des catégories parentes
                 await Promise.all(
                   Object.entries(editPercentages).map(([id, pct]) =>
                     budgetCategoriesAPI.update(Number(id), { percentage: pct })
                   )
                 );
+                // Sauvegarder les pourcentages des sous-catégories
+                const existingSubBudgets = (summary?.categories || []).filter(c => c.category?.parent_id);
+                for (const [catIdStr, pct] of Object.entries(editSubPercentages)) {
+                  const catId = Number(catIdStr);
+                  const existing = existingSubBudgets.find(b => b.category_id === catId);
+                  if (existing) {
+                    await budgetCategoriesAPI.update(existing.id, { percentage: pct });
+                  } else {
+                    await budgetCategoriesAPI.create({ category_id: catId, percentage: pct });
+                  }
+                }
                 setSettingsDialogOpen(false);
                 await fetchData();
                 window.dispatchEvent(new CustomEvent('refresh-budget-data'));
