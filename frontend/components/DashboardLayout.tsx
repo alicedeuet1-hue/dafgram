@@ -512,56 +512,7 @@ export default function DashboardLayout({ children }: Props) {
           </Box>
         </MenuItem>
       ))}
-      <Divider sx={{ my: 0.5 }} />
-      {/* Créer un espace */}
-      <MenuItem
-        onClick={() => {
-          handleCompanyMenuCloseImmediate();
-          setDialogError(null);
-          setNewSpaceName('');
-          setNewSpaceType(isPersonalAccount ? 'business' : 'personal');
-          setCreateSpaceDialogOpen(true);
-        }}
-        sx={{
-          py: 1,
-          px: 2,
-          color: '#F5C518',
-          '&:hover': {
-            bgcolor: resolvedMode === 'dark' ? 'rgba(245, 197, 24, 0.1)' : '#FEF9E7',
-          },
-        }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <AddIcon sx={{ fontSize: 18 }} />
-          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-            {isPersonalAccount ? 'Créer un espace pro' : 'Créer un espace perso'}
-          </Typography>
-        </Box>
-      </MenuItem>
-      {/* Rejoindre une entreprise */}
-      <MenuItem
-        onClick={() => {
-          handleCompanyMenuCloseImmediate();
-          setDialogError(null);
-          setJoinCode('');
-          setJoinCompanyDialogOpen(true);
-        }}
-        sx={{
-          py: 1,
-          px: 2,
-          color: resolvedMode === 'dark' ? '#B0B0B0' : '#6B7280',
-          '&:hover': {
-            bgcolor: resolvedMode === 'dark' ? 'rgba(245, 197, 24, 0.1)' : '#FEF9E7',
-          },
-        }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <GroupIcon sx={{ fontSize: 18 }} />
-          <Typography variant="body2" sx={{ fontWeight: 500 }}>
-            Rejoindre une entreprise
-          </Typography>
-        </Box>
-      </MenuItem>
+      {/* Créer un espace pro / Rejoindre — désactivé pour le moment (lancement perso uniquement) */}
       {/* Code d'invitation (pro seulement) */}
       {!isPersonalAccount && (
         <MenuItem
