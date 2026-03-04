@@ -292,9 +292,9 @@ async def upload_company_logo(
 
     # Supprimer l'ancien logo
     if company.logo_url:
-        if s3_enabled() and company.logo_url.startswith("http"):
+        if s3_enabled() and (company.logo_url.startswith("http") or company.logo_url.startswith("/api/files/")):
             delete_from_s3(company.logo_url)
-        else:
+        elif company.logo_url.startswith("/uploads/"):
             old_path = os.path.join(UPLOAD_DIR, company.logo_url.split("/")[-1])
             if os.path.exists(old_path):
                 os.remove(old_path)
@@ -331,9 +331,9 @@ async def delete_company_logo(
         raise HTTPException(status_code=404, detail="Entreprise non trouvée")
 
     if company.logo_url:
-        if s3_enabled() and company.logo_url.startswith("http"):
+        if s3_enabled() and (company.logo_url.startswith("http") or company.logo_url.startswith("/api/files/")):
             delete_from_s3(company.logo_url)
-        else:
+        elif company.logo_url.startswith("/uploads/"):
             old_path = os.path.join(UPLOAD_DIR, company.logo_url.split("/")[-1])
             if os.path.exists(old_path):
                 os.remove(old_path)
@@ -453,9 +453,9 @@ async def upload_settings_logo(
 
     # Supprimer l'ancien logo
     if settings.logo_url:
-        if s3_enabled() and settings.logo_url.startswith("http"):
+        if s3_enabled() and (settings.logo_url.startswith("http") or settings.logo_url.startswith("/api/files/")):
             delete_from_s3(settings.logo_url)
-        else:
+        elif settings.logo_url.startswith("/uploads/"):
             old_path = os.path.join(UPLOAD_DIR, settings.logo_url.split("/")[-1])
             if os.path.exists(old_path):
                 os.remove(old_path)
@@ -491,9 +491,9 @@ async def delete_settings_logo(
     ).first()
 
     if settings and settings.logo_url:
-        if s3_enabled() and settings.logo_url.startswith("http"):
+        if s3_enabled() and (settings.logo_url.startswith("http") or settings.logo_url.startswith("/api/files/")):
             delete_from_s3(settings.logo_url)
-        else:
+        elif settings.logo_url.startswith("/uploads/"):
             old_path = os.path.join(UPLOAD_DIR, settings.logo_url.split("/")[-1])
             if os.path.exists(old_path):
                 os.remove(old_path)

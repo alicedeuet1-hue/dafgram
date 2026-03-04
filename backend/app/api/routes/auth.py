@@ -476,9 +476,9 @@ async def upload_avatar(
 
     # Supprimer l'ancien avatar
     if current_user.avatar_url:
-        if s3_enabled() and current_user.avatar_url.startswith("http"):
+        if s3_enabled() and (current_user.avatar_url.startswith("http") or current_user.avatar_url.startswith("/api/files/")):
             delete_from_s3(current_user.avatar_url)
-        else:
+        elif current_user.avatar_url.startswith("/uploads/"):
             old_path = os.path.join(UPLOAD_DIR, current_user.avatar_url.split("/")[-1])
             if os.path.exists(old_path):
                 os.remove(old_path)
@@ -509,9 +509,9 @@ async def delete_avatar(
     from app.core.s3 import s3_enabled, delete_from_s3
 
     if current_user.avatar_url:
-        if s3_enabled() and current_user.avatar_url.startswith("http"):
+        if s3_enabled() and (current_user.avatar_url.startswith("http") or current_user.avatar_url.startswith("/api/files/")):
             delete_from_s3(current_user.avatar_url)
-        else:
+        elif current_user.avatar_url.startswith("/uploads/"):
             old_path = os.path.join(UPLOAD_DIR, current_user.avatar_url.split("/")[-1])
             if os.path.exists(old_path):
                 os.remove(old_path)

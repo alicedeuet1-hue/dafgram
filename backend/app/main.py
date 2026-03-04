@@ -20,6 +20,7 @@ from app.api.routes.vat_rates import router as vat_rates_router
 from app.api.routes.savings_categories import router as savings_categories_router
 from app.api.routes.time_entries import router as time_entries_router
 from app.api.routes.payment import router as payment_router
+from app.api.routes.files import router as files_router
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -73,6 +74,7 @@ app.include_router(vat_rates_router, prefix="/api/vat-rates")
 app.include_router(savings_categories_router, prefix="/api/savings-categories")
 app.include_router(time_entries_router, prefix="/api/time-entries")
 app.include_router(payment_router, prefix="/api/payment")
+app.include_router(files_router, prefix="/api")
 
 @app.get("/")
 def root():
