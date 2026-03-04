@@ -16,6 +16,9 @@ import {
   DialogTitle,
   DialogContent,
   CircularProgress,
+  Slider,
+  Button,
+  DialogActions,
   alpha,
   useTheme,
 } from '@mui/material';
@@ -82,6 +85,11 @@ export default function SavingsPieCharts({
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [transactionsLoading, setTransactionsLoading] = useState(false);
   const router = useRouter();
+
+  // État pour le dialog de personnalisation des pourcentages
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
+  const [editPercentages, setEditPercentages] = useState<Record<number, number>>({});
+  const [savingPercentages, setSavingPercentages] = useState(false);
 
   // État pour le positionnement dynamique du logo
   const [logoTop, setLogoTop] = useState(92);
@@ -570,9 +578,27 @@ export default function SavingsPieCharts({
         <Card sx={{ borderRadius: 2, bgcolor: theme.palette.background.paper }}>
           <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
-                Épargne
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
+                  Épargne
+                </Typography>
+                {isPersonalAccount && (
+                  <IconButton
+                    size="small"
+                    onClick={() => {
+                      const pcts: Record<number, number> = {};
+                      categories.forEach(c => {
+                        pcts[c.id] = c.percentage;
+                      });
+                      setEditPercentages(pcts);
+                      setSettingsDialogOpen(true);
+                    }}
+                    sx={{ color: theme.palette.text.secondary, p: 0.5 }}
+                  >
+                    <SettingsIcon sx={{ fontSize: 18 }} />
+                  </IconButton>
+                )}
+              </Box>
               <Box sx={{ textAlign: 'right' }}>
                 <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
                   {summary?.total_savings_percentage || 0}% {isPersonalAccount ? 'des revenus' : 'du CA'}
@@ -1178,6 +1204,112 @@ export default function SavingsPieCharts({
             </Box>
           )}
         </DialogContent>
+      </Dialog>
+
+      {/* Dialog de personnalisation des pourcentages d'épargne */}
+      <Dialog
+        open={settingsDialogOpen}
+        onClose={() => setSettingsDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pb: 1 }}>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+            Répartition de l'épargne
+          </Typography>
+          <IconButton size="small" onClick={() => setSettingsDialogOpen(false)}>
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Ajustez la répartition entre vos catégories d'épargne. Le total doit être égal à 100%.
+          </Typography>
+          {categories.map((cat) => {
+            const currentPct = editPercentages[cat.id] ?? cat.percentage;
+
+            return (
+              <Box key={cat.id} sx={{ mb: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: cat.color }} />
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {cat.name}
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" sx={{ fontWeight: 700, color: cat.color }}>
+                    {currentPct}%
+                  </Typography>
+                </Box>
+                <Slider
+                  value={currentPct}
+                  onChange={(_, value) => {
+                    setEditPercentages(prev => ({ ...prev, [cat.id]: value as number }));
+                  }}
+                  min={0}
+                  max={100}
+                  step={5}
+                  sx={{
+                    color: cat.color,
+                    '& .MuiSlider-thumb': { width: 20, height: 20 },
+                  }}
+                />
+              </Box>
+            );
+          })}
+          {(() => {
+            const total = Object.values(editPercentages).reduce((sum, v) => sum + v, 0);
+            const isValid = total === 100;
+            return (
+              <Box sx={{
+                p: 1.5,
+                borderRadius: 2,
+                bgcolor: isValid ? alpha('#10B981', 0.1) : alpha('#EF4444', 0.1),
+                border: `1px solid ${isValid ? alpha('#10B981', 0.3) : alpha('#EF4444', 0.3)}`,
+                textAlign: 'center',
+              }}>
+                <Typography variant="body2" sx={{ fontWeight: 600, color: isValid ? '#10B981' : '#EF4444' }}>
+                  Total : {total}%{!isValid && ` (doit être 100%)`}
+                </Typography>
+              </Box>
+            );
+          })()}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setSettingsDialogOpen(false)} sx={{ color: 'text.secondary' }}>
+            Annuler
+          </Button>
+          <Button
+            variant="contained"
+            disabled={savingPercentages || Object.values(editPercentages).reduce((sum, v) => sum + v, 0) !== 100}
+            onClick={async () => {
+              setSavingPercentages(true);
+              try {
+                await Promise.all(
+                  Object.entries(editPercentages).map(([id, pct]) =>
+                    savingsCategoriesAPI.update(Number(id), { percentage: pct })
+                  )
+                );
+                setSettingsDialogOpen(false);
+                await fetchData();
+                window.dispatchEvent(new CustomEvent('refresh-savings-data'));
+              } catch (err: any) {
+                console.error('Error updating savings percentages:', err);
+              } finally {
+                setSavingPercentages(false);
+              }
+            }}
+            sx={{
+              bgcolor: '#F5C518',
+              color: '#000',
+              fontWeight: 600,
+              '&:hover': { bgcolor: '#D4A516' },
+            }}
+          >
+            {savingPercentages ? <CircularProgress size={20} /> : 'Enregistrer'}
+          </Button>
+        </DialogActions>
       </Dialog>
     </Box>
   );
