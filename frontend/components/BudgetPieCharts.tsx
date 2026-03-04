@@ -369,7 +369,7 @@ export default function BudgetPieCharts({ onCategoryClick, currentDate: external
 
   const fetchCategories = async () => {
     try {
-      const response = await bankAPI.getCategories(undefined, true);
+      const response = await bankAPI.getCategories();
       setAllCategories(response.data);
     } catch (err) {
       console.error('Error fetching categories:', err);
