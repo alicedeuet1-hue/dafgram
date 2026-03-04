@@ -211,8 +211,8 @@ export default function PersonalExpenseSummary({ currentDate }: Props) {
                       <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
                         {row.name}
                       </Typography>
-                      <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-                        ({row.percentage}%)
+                      <Typography variant="caption" sx={{ color: isOver ? '#EF4444' : theme.palette.text.secondary }}>
+                        ({Math.round(usedPercent)}% utilisé)
                       </Typography>
                     </Box>
                     <Typography
