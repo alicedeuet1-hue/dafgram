@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 def _migrate_personal_subcategories():
     """Ajouter les sous-catégories manquantes aux comptes personnels existants."""
-    from app.db.session import SessionLocal
+    from app.db.database import SessionLocal
     from app.db.models import Company, AccountType, Category, TransactionType
 
     subcategories = {
