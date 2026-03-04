@@ -28,7 +28,12 @@ logger = logging.getLogger(__name__)
 def _migrate_personal_subcategories():
     """Ajouter les sous-catégories manquantes aux comptes personnels existants."""
     from app.db.database import SessionLocal
-    from app.db.models import Company, AccountType, Category, TransactionType
+    from app.db.models import Company, AccountType, Category, TransactionType, BudgetCategory
+
+    parent_categories = [
+        {"name": "Quotidien", "color": "#3B82F6", "budget_pct": 50},
+        {"name": "Plaisirs", "color": "#8B5CF6", "budget_pct": 30},
+    ]
 
     subcategories = {
         "Quotidien": [
@@ -51,8 +56,41 @@ def _migrate_personal_subcategories():
         personal_companies = db.query(Company).filter(
             Company.account_type == AccountType.PERSONAL
         ).all()
+        logger.info(f"Migration: found {len(personal_companies)} personal account(s)")
 
         for company in personal_companies:
+            # Créer les catégories parentes si manquantes
+            for pcat in parent_categories:
+                parent = db.query(Category).filter(
+                    Category.company_id == company.id,
+                    Category.name == pcat["name"],
+                    Category.type == TransactionType.EXPENSE,
+                    Category.parent_id.is_(None),
+                ).first()
+                if not parent:
+                    parent = Category(
+                        company_id=company.id,
+                        name=pcat["name"],
+                        type=TransactionType.EXPENSE,
+                        color=pcat["color"],
+                    )
+                    db.add(parent)
+                    db.flush()
+                    logger.info(f"Created parent category '{pcat['name']}' for company {company.id}")
+
+                    # Créer le BudgetCategory associé
+                    db.add(BudgetCategory(
+                        company_id=company.id,
+                        category_id=parent.id,
+                        percentage=pcat["budget_pct"],
+                        is_savings=False,
+                        period_month=None,
+                        period_year=None,
+                    ))
+
+            db.flush()
+
+            # Créer les sous-catégories
             for parent_name, children in subcategories.items():
                 parent = db.query(Category).filter(
                     Category.company_id == company.id,
@@ -78,15 +116,18 @@ def _migrate_personal_subcategories():
                         ))
                         logger.info(f"Created subcategory '{sub['name']}' under '{parent_name}' for company {company.id}")
         db.commit()
+        logger.info("Migration completed successfully")
     except Exception as e:
         db.rollback()
-        logger.error(f"Migration error: {e}")
+        logger.error(f"Migration error: {e}", exc_info=True)
     finally:
         db.close()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from app.core.s3 import s3_enabled
+    logger.info(f"S3 enabled: {s3_enabled()}, bucket: '{settings.AWS_S3_BUCKET}', region: '{settings.AWS_S3_REGION}'")
     _migrate_personal_subcategories()
     yield
 
