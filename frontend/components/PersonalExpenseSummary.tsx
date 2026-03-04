@@ -86,7 +86,7 @@ export default function PersonalExpenseSummary({ currentDate }: Props) {
   }
 
   const totalRevenue = summary?.total_revenue || 0;
-  const totalSpent = summary?.total_spent || 0;
+  const totalSpent = summary?.total_expenses || 0;
   const remaining = totalRevenue - totalSpent;
   const savingsPercentage = savingsSummary?.total_savings_percentage || 0;
   const savingsAllocated = (savingsPercentage / 100) * totalRevenue;

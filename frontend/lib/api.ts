@@ -602,12 +602,10 @@ export interface SavingsSummary {
 }
 
 export interface BudgetSummary {
-  month: number;
-  year: number;
   total_revenue: number;
+  total_expenses: number;
   total_allocated: number;
-  total_spent: number;
-  total_remaining: number;
+  total_unallocated: number;
   categories: BudgetCategory[];
 }
 
