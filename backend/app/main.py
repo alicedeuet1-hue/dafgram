@@ -1,7 +1,9 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
+import logging
 from app.api.routes.health import router as health_router
 from app.api.routes.auth import router as auth_router
 from app.api.routes.budgets import router as budgets_router
@@ -20,7 +22,76 @@ from app.api.routes.time_entries import router as time_entries_router
 from app.api.routes.payment import router as payment_router
 from app.core.config import settings
 
-app = FastAPI(title=settings.APP_NAME, version=settings.API_VERSION)
+logger = logging.getLogger(__name__)
+
+
+def _migrate_personal_subcategories():
+    """Ajouter les sous-catégories manquantes aux comptes personnels existants."""
+    from app.db.session import SessionLocal
+    from app.db.models import Company, AccountType, Category, TransactionType
+
+    subcategories = {
+        "Quotidien": [
+            {"name": "Loyer", "color": "#2563EB"},
+            {"name": "Prêt", "color": "#1D4ED8"},
+            {"name": "EDT", "color": "#F59E0B"},
+            {"name": "Vini", "color": "#10B981"},
+            {"name": "Internet", "color": "#8B5CF6"},
+            {"name": "Courses Alimentaires", "color": "#EF4444"},
+        ],
+        "Plaisirs": [
+            {"name": "Shopping", "color": "#EC4899"},
+            {"name": "Restaurants", "color": "#F97316"},
+            {"name": "Voyages", "color": "#06B6D4"},
+        ],
+    }
+
+    db = SessionLocal()
+    try:
+        personal_companies = db.query(Company).filter(
+            Company.account_type == AccountType.PERSONAL
+        ).all()
+
+        for company in personal_companies:
+            for parent_name, children in subcategories.items():
+                parent = db.query(Category).filter(
+                    Category.company_id == company.id,
+                    Category.name == parent_name,
+                    Category.type == TransactionType.EXPENSE,
+                    Category.parent_id.is_(None),
+                ).first()
+                if not parent:
+                    continue
+                for sub in children:
+                    exists = db.query(Category).filter(
+                        Category.company_id == company.id,
+                        Category.name == sub["name"],
+                        Category.parent_id == parent.id,
+                    ).first()
+                    if not exists:
+                        db.add(Category(
+                            company_id=company.id,
+                            name=sub["name"],
+                            type=TransactionType.EXPENSE,
+                            color=sub["color"],
+                            parent_id=parent.id,
+                        ))
+                        logger.info(f"Created subcategory '{sub['name']}' under '{parent_name}' for company {company.id}")
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Migration error: {e}")
+    finally:
+        db.close()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    _migrate_personal_subcategories()
+    yield
+
+
+app = FastAPI(title=settings.APP_NAME, version=settings.API_VERSION, lifespan=lifespan)
 
 # Configuration CORS
 app.add_middleware(
