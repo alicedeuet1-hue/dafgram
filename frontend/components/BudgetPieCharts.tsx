@@ -137,6 +137,7 @@ export default function BudgetPieCharts({ onCategoryClick, currentDate: external
   // État pour le formulaire d'enregistrement rapide (profil personnel)
   const [personalTxAmount, setPersonalTxAmount] = useState('');
   const [personalTxDesc, setPersonalTxDesc] = useState('');
+  const [personalTxCategoryId, setPersonalTxCategoryId] = useState<number | ''>('');
   const [personalTxSaving, setPersonalTxSaving] = useState(false);
   const [personalTxError, setPersonalTxError] = useState<string | null>(null);
   const [personalTxSuccess, setPersonalTxSuccess] = useState(false);
@@ -292,8 +293,10 @@ export default function BudgetPieCharts({ onCategoryClick, currentDate: external
       const startDate = new Date(year, month - 1, 1);
       const endDate = new Date(year, month, 0);
 
-      // Récupérer les IDs de toutes les catégories liées (parent + sous-catégories)
-      const categoryIds = [parentData.id, ...parentData.subcategories.map(s => s.category_id)].filter((id): id is number => id !== null);
+      // Récupérer les IDs de toutes les catégories liées (parent + sous-catégories budget + sous-catégories Category)
+      const budgetSubIds = parentData.subcategories.map(s => s.category_id).filter((id): id is number => id !== null);
+      const categorySubIds = allCategories.filter(c => c.parent_id === parentData.id).map(c => c.id);
+      const categoryIds = [...new Set([parentData.id, ...budgetSubIds, ...categorySubIds])];
 
       const allTransactions: Transaction[] = [];
 
@@ -416,6 +419,11 @@ export default function BudgetPieCharts({ onCategoryClick, currentDate: external
 
   const handleDialogNextMonth = () => {
     setDialogMonth(addMonths(dialogMonth, 1));
+  };
+
+  // Obtenir les sous-catégories d'un parent depuis allCategories
+  const getSubcategoriesForParent = (parentCategoryId: number): Category[] => {
+    return allCategories.filter(c => c.parent_id === parentCategoryId && c.type === 'expense');
   };
 
   // Grouper les catégories de budget par catégorie mère
@@ -2421,6 +2429,29 @@ export default function BudgetPieCharts({ onCategoryClick, currentDate: external
                     <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>
                       Enregistrer une dépense
                     </Typography>
+                    {(() => {
+                      const parentId = selectedSubcategory.subcategory.category_id;
+                      const subs = parentId ? getSubcategoriesForParent(parentId) : [];
+                      return subs.length > 0 && (
+                        <FormControl size="small" fullWidth sx={{ mb: 2 }}>
+                          <InputLabel>Sous-catégorie</InputLabel>
+                          <Select
+                            value={personalTxCategoryId}
+                            label="Sous-catégorie"
+                            onChange={(e) => setPersonalTxCategoryId(e.target.value as number)}
+                          >
+                            {subs.map(sub => (
+                              <MenuItem key={sub.id} value={sub.id}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: sub.color }} />
+                                  {sub.name}
+                                </Box>
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      );
+                    })()}
                     <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
                       <TextField
                         size="small"
@@ -2454,6 +2485,11 @@ export default function BudgetPieCharts({ onCategoryClick, currentDate: external
                       fullWidth
                       disabled={personalTxSaving || !personalTxAmount}
                       onClick={async () => {
+                        const parentId = selectedSubcategory.subcategory.category_id;
+                        const catId = personalTxCategoryId || parentId;
+                        const catName = personalTxCategoryId
+                          ? allCategories.find(c => c.id === personalTxCategoryId)?.name
+                          : selectedSubcategory.subcategory.category?.name;
                         setPersonalTxSaving(true);
                         setPersonalTxError(null);
                         setPersonalTxSuccess(false);
@@ -2461,14 +2497,15 @@ export default function BudgetPieCharts({ onCategoryClick, currentDate: external
                           await transactionsAPI.create({
                             type: 'expense',
                             amount: parseFloat(personalTxAmount),
-                            description: personalTxDesc || selectedSubcategory.subcategory.category?.name || 'Dépense',
-                            category_id: selectedSubcategory.subcategory.category_id,
+                            description: personalTxDesc || catName || 'Dépense',
+                            category_id: catId,
                             company_id: user?.company_id,
                             account_type: 'company',
                             transaction_date: new Date().toISOString(),
                           });
                           setPersonalTxAmount('');
                           setPersonalTxDesc('');
+                          setPersonalTxCategoryId('');
                           setPersonalTxSuccess(true);
                           await fetchData();
                           window.dispatchEvent(new CustomEvent('refresh-budget-data'));
@@ -3107,6 +3144,29 @@ export default function BudgetPieCharts({ onCategoryClick, currentDate: external
                   <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>
                     Enregistrer une dépense
                   </Typography>
+                  {(() => {
+                    const parentId = selectedDetailCategory?.category_id;
+                    const subs = parentId ? getSubcategoriesForParent(parentId) : [];
+                    return subs.length > 0 && (
+                      <FormControl size="small" fullWidth sx={{ mb: 2 }}>
+                        <InputLabel>Sous-catégorie</InputLabel>
+                        <Select
+                          value={personalTxCategoryId}
+                          label="Sous-catégorie"
+                          onChange={(e) => setPersonalTxCategoryId(e.target.value as number)}
+                        >
+                          {subs.map(sub => (
+                            <MenuItem key={sub.id} value={sub.id}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: sub.color }} />
+                                {sub.name}
+                              </Box>
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    );
+                  })()}
                   <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
                     <TextField
                       size="small"
@@ -3140,6 +3200,11 @@ export default function BudgetPieCharts({ onCategoryClick, currentDate: external
                     fullWidth
                     disabled={personalTxSaving || !personalTxAmount}
                     onClick={async () => {
+                      const parentId = selectedDetailCategory?.category_id;
+                      const catId = personalTxCategoryId || parentId;
+                      const catName = personalTxCategoryId
+                        ? allCategories.find(c => c.id === personalTxCategoryId)?.name
+                        : selectedDetailCategory?.category?.name;
                       setPersonalTxSaving(true);
                       setPersonalTxError(null);
                       setPersonalTxSuccess(false);
@@ -3147,14 +3212,15 @@ export default function BudgetPieCharts({ onCategoryClick, currentDate: external
                         await transactionsAPI.create({
                           type: 'expense',
                           amount: parseFloat(personalTxAmount),
-                          description: personalTxDesc || selectedDetailCategory?.category?.name || 'Dépense',
-                          category_id: selectedDetailCategory?.category_id,
+                          description: personalTxDesc || catName || 'Dépense',
+                          category_id: catId,
                           company_id: user?.company_id,
                           account_type: 'company',
                           transaction_date: new Date().toISOString(),
                         });
                         setPersonalTxAmount('');
                         setPersonalTxDesc('');
+                        setPersonalTxCategoryId('');
                         setPersonalTxSuccess(true);
                         await fetchData();
                         window.dispatchEvent(new CustomEvent('refresh-budget-data'));
@@ -3369,6 +3435,29 @@ export default function BudgetPieCharts({ onCategoryClick, currentDate: external
                   <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>
                     Enregistrer une dépense
                   </Typography>
+                  {(() => {
+                    const parentId = selectedCategoryData?.id;
+                    const subs = parentId ? getSubcategoriesForParent(parentId) : [];
+                    return subs.length > 0 && (
+                      <FormControl size="small" fullWidth sx={{ mb: 2 }}>
+                        <InputLabel>Sous-catégorie</InputLabel>
+                        <Select
+                          value={personalTxCategoryId}
+                          label="Sous-catégorie"
+                          onChange={(e) => setPersonalTxCategoryId(e.target.value as number)}
+                        >
+                          {subs.map(sub => (
+                            <MenuItem key={sub.id} value={sub.id}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: sub.color }} />
+                                {sub.name}
+                              </Box>
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    );
+                  })()}
                   <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
                     <TextField
                       size="small"
@@ -3402,6 +3491,11 @@ export default function BudgetPieCharts({ onCategoryClick, currentDate: external
                     fullWidth
                     disabled={personalTxSaving || !personalTxAmount}
                     onClick={async () => {
+                      const parentId = selectedCategoryData?.id;
+                      const catId = personalTxCategoryId || parentId;
+                      const catName = personalTxCategoryId
+                        ? allCategories.find(c => c.id === personalTxCategoryId)?.name
+                        : selectedCategoryData?.name;
                       setPersonalTxSaving(true);
                       setPersonalTxError(null);
                       setPersonalTxSuccess(false);
@@ -3409,18 +3503,18 @@ export default function BudgetPieCharts({ onCategoryClick, currentDate: external
                         await transactionsAPI.create({
                           type: 'expense',
                           amount: parseFloat(personalTxAmount),
-                          description: personalTxDesc || selectedCategoryData?.name || 'Dépense',
-                          category_id: selectedCategoryData?.id,
+                          description: personalTxDesc || catName || 'Dépense',
+                          category_id: catId,
                           company_id: user?.company_id,
                           account_type: 'company',
                           transaction_date: new Date().toISOString(),
                         });
                         setPersonalTxAmount('');
                         setPersonalTxDesc('');
+                        setPersonalTxCategoryId('');
                         setPersonalTxSuccess(true);
                         await fetchData();
                         window.dispatchEvent(new CustomEvent('refresh-budget-data'));
-                        // Recharger les transactions du dialog
                         if (selectedCategoryData) {
                           await handleDrillDown(selectedCategoryData);
                         }
