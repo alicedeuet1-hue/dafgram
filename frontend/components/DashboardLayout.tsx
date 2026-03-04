@@ -503,7 +503,7 @@ export default function DashboardLayout({ children }: Props) {
             </Box>
             <Box>
               <Typography variant="body2" sx={{ fontWeight: currentCompany?.id === uc.company.id ? 600 : 400 }}>
-                {uc.company.account_type === 'personal' ? 'Personnel' : uc.company.name}
+                {uc.company.name}
               </Typography>
             </Box>
             {currentCompany?.id === uc.company.id && (
@@ -1028,7 +1028,7 @@ export default function DashboardLayout({ children }: Props) {
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    {isPersonalAccount ? 'Personnel' : (currentCompany?.name || 'Entreprise')}
+                    {currentCompany?.name || 'Entreprise'}
                   </Typography>
                   <KeyboardArrowDown
                     sx={{
