@@ -157,6 +157,9 @@ export default function BudgetPieCharts({ onCategoryClick, currentDate: external
   const [editSubPercentages, setEditSubPercentages] = useState<Record<number, number>>({});
   const [savingPercentages, setSavingPercentages] = useState(false);
 
+  // État pour l'édition inline de la catégorie d'une transaction
+  const [editingTxId, setEditingTxId] = useState<number | null>(null);
+
   // État pour le sélecteur de mois
   const [monthAnchorEl, setMonthAnchorEl] = useState<HTMLElement | null>(null);
 
@@ -426,6 +429,22 @@ export default function BudgetPieCharts({ onCategoryClick, currentDate: external
   // Obtenir les sous-catégories d'un parent depuis allCategories
   const getSubcategoriesForParent = (parentCategoryId: number): Category[] => {
     return allCategories.filter(c => c.parent_id === parentCategoryId && c.type === 'expense');
+  };
+
+  // Changer la catégorie d'une transaction existante
+  const handleChangeTxCategory = async (txId: number, newCategoryId: number) => {
+    try {
+      await transactionsAPI.update(txId, { category_id: newCategoryId });
+      // Mettre à jour la liste locale
+      setCategoryTransactions(prev =>
+        prev.map(tx => tx.id === txId ? { ...tx, category_id: newCategoryId, category: allCategories.find(c => c.id === newCategoryId) } : tx)
+      );
+      setEditingTxId(null);
+      // Rafraîchir les données du budget
+      await fetchData();
+    } catch (err) {
+      console.error('Error updating transaction category:', err);
+    }
   };
 
   // Grouper les catégories de budget par catégorie mère
@@ -1421,19 +1440,40 @@ export default function BudgetPieCharts({ onCategoryClick, currentDate: external
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                          <Box
+                        {editingTxId === tx.id ? (
+                          <Select
+                            size="small"
+                            value={tx.category_id || ''}
+                            onChange={(e) => handleChangeTxCategory(tx.id, Number(e.target.value))}
+                            onClose={() => setEditingTxId(null)}
+                            autoFocus
+                            open
+                            sx={{ minWidth: 120, fontSize: '0.75rem' }}
+                          >
+                            {allCategories.filter(c => c.type === 'expense').map(cat => (
+                              <MenuItem key={cat.id} value={cat.id} sx={{ fontSize: '0.75rem' }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: cat.color }} />
+                                  {cat.parent_id ? `  ${cat.name}` : cat.name}
+                                </Box>
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        ) : (
+                          <Chip
+                            size="small"
+                            label={tx.category?.name || 'Non catégorisé'}
+                            onClick={() => setEditingTxId(tx.id)}
                             sx={{
-                              width: 8,
-                              height: 8,
-                              borderRadius: '50%',
-                              bgcolor: adaptColorForTheme(tx.category?.color || '#6B7280'),
+                              cursor: 'pointer',
+                              bgcolor: alpha(tx.category?.color || '#6B7280', 0.15),
+                              color: adaptColorForTheme(tx.category?.color || '#6B7280'),
+                              fontWeight: 500,
+                              fontSize: '0.7rem',
+                              '&:hover': { bgcolor: alpha(tx.category?.color || '#6B7280', 0.25) },
                             }}
                           />
-                          <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-                            {tx.category?.name || '-'}
-                          </Typography>
-                        </Box>
+                        )}
                       </TableCell>
                       <TableCell
                         align="right"
@@ -3392,19 +3432,40 @@ export default function BudgetPieCharts({ onCategoryClick, currentDate: external
                             </Typography>
                           </TableCell>
                           <TableCell>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                              <Box
+                            {editingTxId === tx.id ? (
+                              <Select
+                                size="small"
+                                value={tx.category_id || ''}
+                                onChange={(e) => handleChangeTxCategory(tx.id, Number(e.target.value))}
+                                onClose={() => setEditingTxId(null)}
+                                autoFocus
+                                open
+                                sx={{ minWidth: 120, fontSize: '0.75rem' }}
+                              >
+                                {allCategories.filter(c => c.type === 'expense').map(cat => (
+                                  <MenuItem key={cat.id} value={cat.id} sx={{ fontSize: '0.75rem' }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: cat.color }} />
+                                      {cat.parent_id ? `  ${cat.name}` : cat.name}
+                                    </Box>
+                                  </MenuItem>
+                                ))}
+                              </Select>
+                            ) : (
+                              <Chip
+                                size="small"
+                                label={tx.category?.name || 'Non catégorisé'}
+                                onClick={() => setEditingTxId(tx.id)}
                                 sx={{
-                                  width: 10,
-                                  height: 10,
-                                  borderRadius: '50%',
-                                  bgcolor: adaptColorForTheme(tx.category?.color || '#6B7280'),
+                                  cursor: 'pointer',
+                                  bgcolor: alpha(tx.category?.color || '#6B7280', 0.15),
+                                  color: adaptColorForTheme(tx.category?.color || '#6B7280'),
+                                  fontWeight: 500,
+                                  fontSize: '0.7rem',
+                                  '&:hover': { bgcolor: alpha(tx.category?.color || '#6B7280', 0.25) },
                                 }}
                               />
-                              <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
-                                {tx.category?.name || '-'}
-                              </Typography>
-                            </Box>
+                            )}
                           </TableCell>
                           <TableCell
                             align="right"
