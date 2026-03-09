@@ -20,6 +20,15 @@ import {
   Card,
   CardContent,
   Tooltip,
+  Drawer,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Collapse,
+  useMediaQuery,
+  useTheme as useMuiTheme,
 } from '@mui/material';
 import {
   GridView as DashboardIcon,
@@ -38,6 +47,9 @@ import {
   LightMode as LightModeIcon,
   DarkMode as DarkModeIcon,
   TrendingUp as SalesIcon,
+  Menu as MenuIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
 } from '@mui/icons-material';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuthStore } from '@/store/authStore';
@@ -83,6 +95,12 @@ export default function DashboardLayout({ children }: Props) {
   const [newSpaceType, setNewSpaceType] = useState<'personal' | 'business'>('business');
   const [dialogLoading, setDialogLoading] = useState(false);
   const [dialogError, setDialogError] = useState<string | null>(null);
+
+  // Mobile drawer
+  const muiTheme = useMuiTheme();
+  const isMobile = useMediaQuery(muiTheme.breakpoints.down('md'));
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const [mobileSubmenuOpen, setMobileSubmenuOpen] = useState(false);
 
   // Refs pour l'upload d'images
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -794,12 +812,22 @@ export default function DashboardLayout({ children }: Props) {
             </Typography>
           </Box>
 
-          {/* Center: Navigation Menu */}
+          {/* Mobile: Hamburger button */}
+          {isMobile && (
+            <IconButton
+              onClick={() => setMobileDrawerOpen(true)}
+              sx={{ color: resolvedMode === 'dark' ? '#F5F5F7' : '#1A1A1A' }}
+            >
+              <MenuIcon />
+            </IconButton>
+          )}
+
+          {/* Desktop: Navigation Menu */}
           <Box
             sx={{
-              display: 'flex',
+              display: { xs: 'none', md: 'flex' },
               alignItems: 'center',
-              gap: { xs: 0.5, sm: 1 },
+              gap: 1,
             }}
           >
             {menuItems.map((item) => (
@@ -926,11 +954,12 @@ export default function DashboardLayout({ children }: Props) {
 
           {/* Right: Settings + User */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {/* Settings button */}
+            {/* Settings button - desktop only */}
             <Tooltip title="Paramètres">
               <IconButton
                 onClick={() => router.push('/settings')}
                 sx={{
+                  display: { xs: 'none', md: 'flex' },
                   color: isActive('/settings')
                     ? (resolvedMode === 'dark' ? '#F5F5F7' : '#1A1A1A')
                     : '#9CA3AF',
@@ -948,12 +977,13 @@ export default function DashboardLayout({ children }: Props) {
               </IconButton>
             </Tooltip>
 
-            {/* Theme toggle button */}
+            {/* Theme toggle button - desktop only */}
             <Tooltip title={resolvedMode === 'dark' ? 'Mode clair' : 'Mode sombre'}>
               <IconButton
                 onClick={toggleTheme}
                 aria-label={resolvedMode === 'dark' ? 'Activer le mode clair' : 'Activer le mode sombre'}
                 sx={{
+                  display: { xs: 'none', md: 'flex' },
                   color: '#9CA3AF',
                   '&:hover': {
                     bgcolor: resolvedMode === 'dark' ? '#252525' : '#F9FAFB',
@@ -969,11 +999,11 @@ export default function DashboardLayout({ children }: Props) {
               </IconButton>
             </Tooltip>
 
-            {/* Company selector */}
+            {/* Company selector - desktop only */}
             <Box
               onMouseEnter={handleCompanyMenuOpen}
               onMouseLeave={handleCompanyMenuClose}
-              sx={{ position: 'relative' }}
+              sx={{ position: 'relative', display: { xs: 'none', md: 'block' } }}
             >
               <Tooltip title={companyMenuAnchor ? '' : 'Changer d\'entreprise'}>
                 <Box
@@ -1075,6 +1105,147 @@ export default function DashboardLayout({ children }: Props) {
           </Box>
         </Toolbar>
       </AppBar>
+
+      {/* Mobile Navigation Drawer */}
+      <Drawer
+        anchor="left"
+        open={mobileDrawerOpen}
+        onClose={() => setMobileDrawerOpen(false)}
+        PaperProps={{
+          sx: {
+            width: 280,
+            bgcolor: resolvedMode === 'dark' ? '#1A1A1A' : '#FFFFFF',
+          },
+        }}
+      >
+        {/* Header */}
+        <Box sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 1.5, borderBottom: resolvedMode === 'dark' ? '1px solid #2D2D2D' : '1px solid #E5E7EB' }}>
+          <Box sx={{ width: 36, height: 36, borderRadius: 2, bgcolor: '#F5C518', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Typography sx={{ fontWeight: 800, fontSize: '1.1rem', color: '#1A1A1A' }}>D</Typography>
+          </Box>
+          <Typography sx={{ fontWeight: 700, color: resolvedMode === 'dark' ? '#F5F5F7' : '#1A1A1A', fontSize: '1.1rem' }}>
+            DafGram
+          </Typography>
+        </Box>
+
+        {/* Company info */}
+        <Box sx={{ p: 2, borderBottom: resolvedMode === 'dark' ? '1px solid #2D2D2D' : '1px solid #E5E7EB' }}>
+          <Typography variant="caption" sx={{ color: '#9CA3AF', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
+            Espace
+          </Typography>
+          <Typography variant="body2" sx={{ fontWeight: 600, color: resolvedMode === 'dark' ? '#F5F5F7' : '#1A1A1A', mt: 0.5 }}>
+            {currentCompany?.name || 'Entreprise'}
+          </Typography>
+        </Box>
+
+        {/* Navigation items */}
+        <List sx={{ flex: 1, pt: 1 }}>
+          {menuItems.map((item) => (
+            <Box key={item.text}>
+              <ListItem disablePadding>
+                <ListItemButton
+                  onClick={() => {
+                    if (item.hasSubmenu) {
+                      setMobileSubmenuOpen(!mobileSubmenuOpen);
+                    } else {
+                      router.push(item.path);
+                      setMobileDrawerOpen(false);
+                    }
+                  }}
+                  selected={isActiveOrChild(item)}
+                  sx={{
+                    py: 1.5,
+                    px: 2,
+                    '&.Mui-selected': {
+                      bgcolor: resolvedMode === 'dark' ? 'rgba(245, 197, 24, 0.15)' : '#FEF9E7',
+                      borderRight: '3px solid #F5C518',
+                    },
+                    '&:hover': {
+                      bgcolor: resolvedMode === 'dark' ? '#252525' : '#F9FAFB',
+                    },
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: 36, color: isActiveOrChild(item) ? '#F5C518' : '#9CA3AF' }}>
+                    {item.icon}
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={item.text}
+                    primaryTypographyProps={{
+                      fontWeight: isActiveOrChild(item) ? 600 : 400,
+                      fontSize: '0.9rem',
+                      color: isActiveOrChild(item)
+                        ? (resolvedMode === 'dark' ? '#F5F5F7' : '#1A1A1A')
+                        : (resolvedMode === 'dark' ? '#D1D5DB' : '#6B7280'),
+                    }}
+                  />
+                  {item.hasSubmenu && (mobileSubmenuOpen ? <ExpandLessIcon sx={{ color: '#9CA3AF' }} /> : <ExpandMoreIcon sx={{ color: '#9CA3AF' }} />)}
+                </ListItemButton>
+              </ListItem>
+              {/* Submenu */}
+              {item.hasSubmenu && (
+                <Collapse in={mobileSubmenuOpen}>
+                  <List disablePadding>
+                    {item.submenu?.map((subItem) => (
+                      <ListItemButton
+                        key={subItem.text}
+                        onClick={() => {
+                          router.push(subItem.path);
+                          setMobileDrawerOpen(false);
+                        }}
+                        selected={pathname === subItem.path}
+                        sx={{
+                          pl: 6,
+                          py: 1,
+                          '&.Mui-selected': {
+                            bgcolor: resolvedMode === 'dark' ? 'rgba(245, 197, 24, 0.1)' : '#FEF9E7',
+                          },
+                        }}
+                      >
+                        <ListItemText
+                          primary={subItem.text}
+                          primaryTypographyProps={{
+                            fontSize: '0.85rem',
+                            fontWeight: pathname === subItem.path ? 600 : 400,
+                            color: pathname === subItem.path ? '#F5C518' : (resolvedMode === 'dark' ? '#D1D5DB' : '#6B7280'),
+                          }}
+                        />
+                      </ListItemButton>
+                    ))}
+                  </List>
+                </Collapse>
+              )}
+            </Box>
+          ))}
+        </List>
+
+        <Divider sx={{ borderColor: resolvedMode === 'dark' ? '#2D2D2D' : '#E5E7EB' }} />
+
+        {/* Bottom actions */}
+        <List>
+          <ListItemButton
+            onClick={() => { router.push('/settings'); setMobileDrawerOpen(false); }}
+            selected={isActive('/settings')}
+            sx={{
+              py: 1.5, px: 2,
+              '&.Mui-selected': { bgcolor: resolvedMode === 'dark' ? 'rgba(245, 197, 24, 0.15)' : '#FEF9E7' },
+            }}
+          >
+            <ListItemIcon sx={{ minWidth: 36, color: isActive('/settings') ? '#F5C518' : '#9CA3AF' }}>
+              <SettingsIcon sx={{ fontSize: 20 }} />
+            </ListItemIcon>
+            <ListItemText primary="Paramètres" primaryTypographyProps={{ fontSize: '0.9rem', fontWeight: isActive('/settings') ? 600 : 400 }} />
+          </ListItemButton>
+          <ListItemButton
+            onClick={toggleTheme}
+            sx={{ py: 1.5, px: 2 }}
+          >
+            <ListItemIcon sx={{ minWidth: 36, color: '#9CA3AF' }}>
+              {resolvedMode === 'dark' ? <LightModeIcon sx={{ fontSize: 20 }} /> : <DarkModeIcon sx={{ fontSize: 20 }} />}
+            </ListItemIcon>
+            <ListItemText primary={resolvedMode === 'dark' ? 'Mode clair' : 'Mode sombre'} primaryTypographyProps={{ fontSize: '0.9rem' }} />
+          </ListItemButton>
+        </List>
+      </Drawer>
 
       {/* Subscription Warning Banner */}
       <SubscriptionBanner />
