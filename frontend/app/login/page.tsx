@@ -877,22 +877,17 @@ export default function LoginPage() {
           {/* Logo */}
           <Box sx={{ textAlign: 'center', mb: 4 }}>
             <Box
+              component="img"
+              src="/logo.svg"
+              alt="DafGram"
               sx={{
-                width: 56,
-                height: 56,
-                borderRadius: 3,
-                bgcolor: '#F5C518',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+                width: 64,
+                height: 64,
                 mx: 'auto',
                 mb: 2,
+                display: 'block',
               }}
-            >
-              <Typography sx={{ fontWeight: 800, fontSize: '1.5rem', color: '#1A1A1A' }}>
-                D
-              </Typography>
-            </Box>
+            />
             <Typography variant="h5" sx={{ fontWeight: 700, color: '#1A1A1A' }}>
               DafGram
             </Typography>

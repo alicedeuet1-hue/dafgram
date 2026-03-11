@@ -786,20 +786,11 @@ export default function DashboardLayout({ children }: Props) {
             }}
           >
             <Box
-              sx={{
-                width: 36,
-                height: 36,
-                borderRadius: 2,
-                bgcolor: '#F5C518',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Typography sx={{ fontWeight: 800, fontSize: '1.1rem', color: '#1A1A1A' }}>
-                D
-              </Typography>
-            </Box>
+              component="img"
+              src="/logo.svg"
+              alt="DafGram"
+              sx={{ width: 36, height: 36 }}
+            />
             <Typography
               sx={{
                 fontWeight: 700,
@@ -1121,9 +1112,7 @@ export default function DashboardLayout({ children }: Props) {
       >
         {/* Header */}
         <Box sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 1.5, borderBottom: resolvedMode === 'dark' ? '1px solid #2D2D2D' : '1px solid #E5E7EB' }}>
-          <Box sx={{ width: 36, height: 36, borderRadius: 2, bgcolor: '#F5C518', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Typography sx={{ fontWeight: 800, fontSize: '1.1rem', color: '#1A1A1A' }}>D</Typography>
-          </Box>
+          <Box component="img" src="/logo.svg" alt="DafGram" sx={{ width: 36, height: 36 }} />
           <Typography sx={{ fontWeight: 700, color: resolvedMode === 'dark' ? '#F5F5F7' : '#1A1A1A', fontSize: '1.1rem' }}>
             DafGram
           </Typography>
