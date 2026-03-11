@@ -19,7 +19,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 const STORAGE_KEY = 'dafgram-theme';
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [mode, setModeState] = useState<ThemeMode>('system');
+  const [mode, setModeState] = useState<ThemeMode>('light');
   const [mounted, setMounted] = useState(false);
   const [systemPreference, setSystemPreference] = useState<'light' | 'dark'>('light');
 

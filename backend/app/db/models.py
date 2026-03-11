@@ -117,7 +117,7 @@ class Company(Base):
     registration_number = Column(String(100), nullable=True)  # SIRET/SIREN
 
     # Préférences
-    currency = Column(String(10), default="EUR")  # Devise (EUR, USD, XPF, etc.)
+    currency = Column(String(10), default="XPF")  # Devise (EUR, USD, XPF, etc.)
     language = Column(String(10), default="fr")  # Langue (fr, en, etc.)
 
     # Logo de l'entreprise
