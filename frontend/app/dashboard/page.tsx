@@ -29,6 +29,10 @@ import {
   DialogActions,
   TextField,
   CircularProgress,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import {
   ChevronLeft,
@@ -39,7 +43,7 @@ import {
   AdminPanelSettings as AdminIcon,
   Visibility as ViewIcon,
 } from '@mui/icons-material';
-import { transactionsAPI, Transaction, bankAPI } from '@/lib/api';
+import { transactionsAPI, Transaction, bankAPI, Category } from '@/lib/api';
 import { useCompanyStore } from '@/store/companyStore';
 import { useAuthStore } from '@/store/authStore';
 import { format } from 'date-fns';
@@ -82,35 +86,36 @@ export default function DashboardPage() {
   const [txType, setTxType] = useState<'revenue' | 'expense'>('expense');
   const [txAmount, setTxAmount] = useState('');
   const [txDescription, setTxDescription] = useState('');
+  const [txCategoryId, setTxCategoryId] = useState<number | ''>('');
+  const [txCategories, setTxCategories] = useState<Category[]>([]);
   const [txSaving, setTxSaving] = useState(false);
   const [txError, setTxError] = useState<string | null>(null);
 
-  const openTxDialog = (type: 'revenue' | 'expense') => {
+  const openTxDialog = async (type: 'revenue' | 'expense') => {
     setTxType(type);
     setTxAmount('');
     setTxDescription('');
+    setTxCategoryId('');
     setTxError(null);
     setTxDialogOpen(true);
+    try {
+      const catRes = await bankAPI.getCategories(type, false);
+      setTxCategories(catRes.data || []);
+    } catch {
+      setTxCategories([]);
+    }
   };
 
   const handleCreateTransaction = async () => {
-    if (!txAmount) return;
+    if (!txAmount || !txCategoryId) return;
     setTxSaving(true);
     setTxError(null);
     try {
-      // Auto-sélectionner la première catégorie du type si disponible
-      let categoryId: number | undefined;
-      try {
-        const catRes = await bankAPI.getCategories(txType, false);
-        if (catRes.data?.length > 0) {
-          categoryId = catRes.data[0].id;
-        }
-      } catch {}
       await transactionsAPI.create({
         type: txType,
         amount: parseFloat(txAmount),
         description: txDescription,
-        category_id: categoryId,
+        category_id: txCategoryId,
         company_id: user?.company_id,
         account_type: 'company',
       });
@@ -529,6 +534,23 @@ export default function DashboardPage() {
             {txType === 'revenue' ? 'Nouveau revenu' : 'Nouvelle dépense'}
           </DialogTitle>
           <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}>
+            <FormControl fullWidth required>
+              <InputLabel>Catégorie *</InputLabel>
+              <Select
+                value={txCategoryId}
+                label="Catégorie *"
+                onChange={(e) => setTxCategoryId(Number(e.target.value))}
+              >
+                {txCategories.map(cat => (
+                  <MenuItem key={cat.id} value={cat.id}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: cat.color }} />
+                      {cat.name}
+                    </Box>
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
             <TextField
               fullWidth
               label="Montant"
@@ -561,7 +583,7 @@ export default function DashboardPage() {
             <Button
               variant="contained"
               onClick={handleCreateTransaction}
-              disabled={txSaving || !txAmount}
+              disabled={txSaving || !txAmount || !txCategoryId}
               sx={{
                 bgcolor: txType === 'revenue' ? '#10B981' : '#EF4444',
                 fontWeight: 600,
