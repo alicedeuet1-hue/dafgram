@@ -580,37 +580,13 @@ export default function BudgetPieCharts({ onCategoryClick, currentDate: external
   const hasNoRevenue = (summary?.total_revenue || 0) === 0;
   const budgetsConfiguredButNoRevenue = hasBudgetsConfigured && hasNoRevenue;
 
-  // Helper pour ouvrir le dialog de paramétrage des pourcentages
-  const openSettingsDialog = () => {
-    const pcts: Record<number, number> = {};
-    (summary?.categories || []).forEach(c => {
-      if (!c.category?.parent_id) {
-        pcts[c.id] = c.percentage;
-      }
-    });
-    setEditPercentages(pcts);
-    const subPcts: Record<number, number> = {};
-    (summary?.categories || []).forEach(c => {
-      if (c.category?.parent_id && c.category_id) {
-        subPcts[c.category_id] = c.percentage;
-      }
-    });
-    (summary?.categories || []).filter(c => !c.is_savings && c.category && !c.category.parent_id).forEach(parentBudget => {
-      if (!parentBudget.category_id) return;
-      const subs = getSubcategoriesForParent(parentBudget.category_id);
-      const existingIds = new Set(Object.keys(subPcts).map(Number));
-      const missingSubs = subs.filter(s => !existingIds.has(s.id));
-      if (missingSubs.length > 0) {
-        const existingTotal = subs.filter(s => existingIds.has(s.id)).reduce((sum, s) => sum + (subPcts[s.id] || 0), 0);
-        const remaining = 100 - existingTotal;
-        const perSub = Math.round(remaining / missingSubs.length);
-        missingSubs.forEach((sub, i) => {
-          subPcts[sub.id] = i === missingSubs.length - 1 ? (remaining - perSub * (missingSubs.length - 1)) : perSub;
-        });
-      }
-    });
-    setEditSubPercentages(subPcts);
-    setSettingsDialogOpen(true);
+  // Ouvrir les paramètres : redirige vers la page dédiée en mode pie-only, dispatch l'event sinon
+  const openSettings = () => {
+    if (renderMode === 'pie-only') {
+      router.push('/dashboard/budget/charges');
+    } else {
+      window.dispatchEvent(new CustomEvent('open-budget-settings'));
+    }
   };
 
   // Fonction pour assombrir une couleur hex
@@ -1375,7 +1351,7 @@ export default function BudgetPieCharts({ onCategoryClick, currentDate: external
                     size="small"
                     onClick={() => {
                       setShowUnallocatedPanel(false);
-                      openSettingsDialog();
+                      openSettings();
                     }}
                     sx={{
                       bgcolor: '#F5C518',
@@ -1607,7 +1583,7 @@ export default function BudgetPieCharts({ onCategoryClick, currentDate: external
                         <Tooltip title="Paramètres des budgets">
                           <IconButton
                             onClick={() => {
-                              openSettingsDialog();
+                              openSettings();
                             }}
                             sx={{
                               bgcolor: alpha(theme.palette.grey[500], 0.1),
@@ -1735,7 +1711,7 @@ export default function BudgetPieCharts({ onCategoryClick, currentDate: external
                               variant="contained"
                               size="small"
                               onClick={() => {
-                                openSettingsDialog();
+                                openSettings();
                               }}
                               sx={{
                                 mt: 1,
@@ -1996,7 +1972,7 @@ export default function BudgetPieCharts({ onCategoryClick, currentDate: external
                       size="small"
                       onClick={(e) => {
                         e.stopPropagation();
-                        openSettingsDialog();
+                        openSettings();
                       }}
                       sx={{ color: theme.palette.text.secondary, p: 0.5, zIndex: 10 }}
                     >
@@ -2162,7 +2138,7 @@ export default function BudgetPieCharts({ onCategoryClick, currentDate: external
                           variant="contained"
                           size="small"
                           onClick={() => {
-                            openSettingsDialog();
+                            openSettings();
                           }}
                           sx={{
                             bgcolor: '#F5C518',

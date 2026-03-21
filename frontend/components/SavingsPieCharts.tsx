@@ -696,12 +696,16 @@ export default function SavingsPieCharts({
                   size="small"
                   onClick={(e) => {
                     e.stopPropagation();
-                    const pcts: Record<number, number> = {};
-                    categories.forEach(c => {
-                      pcts[c.id] = c.percentage;
-                    });
-                    setEditPercentages(pcts);
-                    setSettingsDialogOpen(true);
+                    if (renderMode === 'pie-only') {
+                      router.push('/dashboard/budget/epargne');
+                    } else {
+                      const pcts: Record<number, number> = {};
+                      categories.forEach(c => {
+                        pcts[c.id] = c.percentage;
+                      });
+                      setEditPercentages(pcts);
+                      setSettingsDialogOpen(true);
+                    }
                   }}
                   sx={{ color: theme.palette.text.secondary, p: 0.5, zIndex: 10 }}
                 >
