@@ -692,23 +692,21 @@ export default function SavingsPieCharts({
                 <Typography variant="subtitle1" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
                   Épargne
                 </Typography>
-                {isPersonalAccount && (
-                  <IconButton
-                    size="small"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const pcts: Record<number, number> = {};
-                      categories.forEach(c => {
-                        pcts[c.id] = c.percentage;
-                      });
-                      setEditPercentages(pcts);
-                      setSettingsDialogOpen(true);
-                    }}
-                    sx={{ color: theme.palette.text.secondary, p: 0.5, zIndex: 10 }}
-                  >
-                    <SettingsIcon sx={{ fontSize: 18 }} />
-                  </IconButton>
-                )}
+                <IconButton
+                  size="small"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const pcts: Record<number, number> = {};
+                    categories.forEach(c => {
+                      pcts[c.id] = c.percentage;
+                    });
+                    setEditPercentages(pcts);
+                    setSettingsDialogOpen(true);
+                  }}
+                  sx={{ color: theme.palette.text.secondary, p: 0.5, zIndex: 10 }}
+                >
+                  <SettingsIcon sx={{ fontSize: 18 }} />
+                </IconButton>
               </Box>
               <Box sx={{ textAlign: 'right' }}>
                 <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
@@ -1020,7 +1018,12 @@ export default function SavingsPieCharts({
                   </Box>
                   <Tooltip title="Paramètres d'épargne">
                     <IconButton
-                      onClick={() => window.dispatchEvent(new CustomEvent('open-savings-settings'))}
+                      onClick={() => {
+                        const pcts: Record<number, number> = {};
+                        categories.forEach(c => { pcts[c.id] = c.percentage; });
+                        setEditPercentages(pcts);
+                        setSettingsDialogOpen(true);
+                      }}
                       sx={{
                         bgcolor: alpha(theme.palette.grey[500], 0.1),
                         '&:hover': { bgcolor: alpha('#10B981', 0.2) },

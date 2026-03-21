@@ -580,6 +580,39 @@ export default function BudgetPieCharts({ onCategoryClick, currentDate: external
   const hasNoRevenue = (summary?.total_revenue || 0) === 0;
   const budgetsConfiguredButNoRevenue = hasBudgetsConfigured && hasNoRevenue;
 
+  // Helper pour ouvrir le dialog de paramétrage des pourcentages
+  const openSettingsDialog = () => {
+    const pcts: Record<number, number> = {};
+    (summary?.categories || []).forEach(c => {
+      if (!c.category?.parent_id) {
+        pcts[c.id] = c.percentage;
+      }
+    });
+    setEditPercentages(pcts);
+    const subPcts: Record<number, number> = {};
+    (summary?.categories || []).forEach(c => {
+      if (c.category?.parent_id && c.category_id) {
+        subPcts[c.category_id] = c.percentage;
+      }
+    });
+    (summary?.categories || []).filter(c => !c.is_savings && c.category && !c.category.parent_id).forEach(parentBudget => {
+      if (!parentBudget.category_id) return;
+      const subs = getSubcategoriesForParent(parentBudget.category_id);
+      const existingIds = new Set(Object.keys(subPcts).map(Number));
+      const missingSubs = subs.filter(s => !existingIds.has(s.id));
+      if (missingSubs.length > 0) {
+        const existingTotal = subs.filter(s => existingIds.has(s.id)).reduce((sum, s) => sum + (subPcts[s.id] || 0), 0);
+        const remaining = 100 - existingTotal;
+        const perSub = Math.round(remaining / missingSubs.length);
+        missingSubs.forEach((sub, i) => {
+          subPcts[sub.id] = i === missingSubs.length - 1 ? (remaining - perSub * (missingSubs.length - 1)) : perSub;
+        });
+      }
+    });
+    setEditSubPercentages(subPcts);
+    setSettingsDialogOpen(true);
+  };
+
   // Fonction pour assombrir une couleur hex
   const darkenColor = (hex: string, percent: number): string => {
     const num = parseInt(hex.replace('#', ''), 16);
@@ -1342,7 +1375,7 @@ export default function BudgetPieCharts({ onCategoryClick, currentDate: external
                     size="small"
                     onClick={() => {
                       setShowUnallocatedPanel(false);
-                      window.dispatchEvent(new CustomEvent('open-budget-settings'));
+                      openSettingsDialog();
                     }}
                     sx={{
                       bgcolor: '#F5C518',
@@ -1574,7 +1607,7 @@ export default function BudgetPieCharts({ onCategoryClick, currentDate: external
                         <Tooltip title="Paramètres des budgets">
                           <IconButton
                             onClick={() => {
-                              window.dispatchEvent(new CustomEvent('open-budget-settings'));
+                              openSettingsDialog();
                             }}
                             sx={{
                               bgcolor: alpha(theme.palette.grey[500], 0.1),
@@ -1702,7 +1735,7 @@ export default function BudgetPieCharts({ onCategoryClick, currentDate: external
                               variant="contained"
                               size="small"
                               onClick={() => {
-                                window.dispatchEvent(new CustomEvent('open-budget-settings'));
+                                openSettingsDialog();
                               }}
                               sx={{
                                 mt: 1,
@@ -1959,49 +1992,16 @@ export default function BudgetPieCharts({ onCategoryClick, currentDate: external
                     <Typography variant="subtitle1" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
                       {isPersonalAccount ? 'Budgétisation' : 'Charges'}
                     </Typography>
-                    {isPersonalAccount && (
-                      <IconButton
-                        size="small"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const pcts: Record<number, number> = {};
-                          (summary?.categories || []).forEach(c => {
-                            if (!c.category?.parent_id) {
-                              pcts[c.id] = c.percentage;
-                            }
-                          });
-                          setEditPercentages(pcts);
-                          // Initialiser les pourcentages des sous-catégories (keyed by category_id)
-                          const subPcts: Record<number, number> = {};
-                          // D'abord, récupérer les % existants depuis les BudgetCategory
-                          (summary?.categories || []).forEach(c => {
-                            if (c.category?.parent_id && c.category_id) {
-                              subPcts[c.category_id] = c.percentage;
-                            }
-                          });
-                          // Ensuite, pour chaque parent, ajouter les sous-catégories manquantes
-                          (summary?.categories || []).filter(c => !c.is_savings && c.category && !c.category.parent_id).forEach(parentBudget => {
-                            if (!parentBudget.category_id) return;
-                            const subs = getSubcategoriesForParent(parentBudget.category_id);
-                            const existingIds = new Set(Object.keys(subPcts).map(Number));
-                            const missingSubs = subs.filter(s => !existingIds.has(s.id));
-                            if (missingSubs.length > 0) {
-                              const existingTotal = subs.filter(s => existingIds.has(s.id)).reduce((sum, s) => sum + (subPcts[s.id] || 0), 0);
-                              const remaining = 100 - existingTotal;
-                              const perSub = Math.round(remaining / missingSubs.length);
-                              missingSubs.forEach((sub, i) => {
-                                subPcts[sub.id] = i === missingSubs.length - 1 ? (remaining - perSub * (missingSubs.length - 1)) : perSub;
-                              });
-                            }
-                          });
-                          setEditSubPercentages(subPcts);
-                          setSettingsDialogOpen(true);
-                        }}
-                        sx={{ color: theme.palette.text.secondary, p: 0.5, zIndex: 10 }}
-                      >
-                        <SettingsIcon sx={{ fontSize: 18 }} />
-                      </IconButton>
-                    )}
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openSettingsDialog();
+                      }}
+                      sx={{ color: theme.palette.text.secondary, p: 0.5, zIndex: 10 }}
+                    >
+                      <SettingsIcon sx={{ fontSize: 18 }} />
+                    </IconButton>
                   </Box>
                   <Box sx={{ textAlign: 'right' }}>
                     <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
@@ -2162,7 +2162,7 @@ export default function BudgetPieCharts({ onCategoryClick, currentDate: external
                           variant="contained"
                           size="small"
                           onClick={() => {
-                            window.dispatchEvent(new CustomEvent('open-budget-settings'));
+                            openSettingsDialog();
                           }}
                           sx={{
                             bgcolor: '#F5C518',
