@@ -233,7 +233,9 @@ export default function DashboardLayout({ children }: Props) {
   ];
 
   // Déterminer le type de compte
-  const isPersonalAccount = currentCompany?.account_type === 'personal';
+  // Dev override: alicedeuet1@gmail.com a toujours accès à la vue entreprise
+  const isDevAccount = user?.email === 'alicedeuet1@gmail.com';
+  const isPersonalAccount = !isDevAccount && currentCompany?.account_type === 'personal';
 
   // Configuration centralisée des items de navigation (source of truth pour les icônes)
   const menuItems = isPersonalAccount
