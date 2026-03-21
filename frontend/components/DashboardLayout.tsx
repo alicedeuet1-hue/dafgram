@@ -533,7 +533,33 @@ export default function DashboardLayout({ children }: Props) {
           </Box>
         </MenuItem>
       ))}
-      {/* Créer un espace pro / Rejoindre — désactivé pour le moment (lancement perso uniquement) */}
+      {/* Créer un espace — visible pour le compte dev */}
+      {isDevAccount && (
+        <MenuItem
+          onClick={() => {
+            handleCompanyMenuCloseImmediate();
+            setDialogError(null);
+            setNewSpaceName('');
+            setNewSpaceType('business');
+            setCreateSpaceDialogOpen(true);
+          }}
+          sx={{
+            py: 1,
+            px: 2,
+            color: resolvedMode === 'dark' ? '#B0B0B0' : '#6B7280',
+            '&:hover': {
+              bgcolor: resolvedMode === 'dark' ? 'rgba(245, 197, 24, 0.1)' : '#FEF9E7',
+            },
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <AddIcon sx={{ fontSize: 18 }} />
+            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+              Créer un espace
+            </Typography>
+          </Box>
+        </MenuItem>
+      )}
       {/* Code d'invitation (pro seulement) */}
       {!isPersonalAccount && (
         <MenuItem
