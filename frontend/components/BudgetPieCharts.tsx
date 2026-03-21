@@ -78,6 +78,7 @@ interface BudgetPieChartsProps {
   currentDate?: Date; // Date externe pour synchroniser avec le dashboard
   renderMode?: 'full' | 'pie-only' | 'detail-only'; // Mode d'affichage
   hideUnallocated?: boolean; // Masquer la part "Non alloué" du camembert
+  onSettingsOpen?: () => void; // Callback pour ouvrir les paramètres depuis le dashboard
 }
 
 // Types pour le popup
@@ -101,7 +102,7 @@ interface SubcategoryTransactions {
   totalExpense: number;
 }
 
-export default function BudgetPieCharts({ onCategoryClick, currentDate: externalDate, renderMode = 'full', hideUnallocated = false }: BudgetPieChartsProps) {
+export default function BudgetPieCharts({ onCategoryClick, currentDate: externalDate, renderMode = 'full', hideUnallocated = false, onSettingsOpen }: BudgetPieChartsProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const router = useRouter();
@@ -580,10 +581,10 @@ export default function BudgetPieCharts({ onCategoryClick, currentDate: external
   const hasNoRevenue = (summary?.total_revenue || 0) === 0;
   const budgetsConfiguredButNoRevenue = hasBudgetsConfigured && hasNoRevenue;
 
-  // Ouvrir les paramètres : redirige vers la page dédiée en mode pie-only, dispatch l'event sinon
+  // Ouvrir les paramètres : callback externe en mode pie-only, dispatch l'event sinon
   const openSettings = () => {
-    if (renderMode === 'pie-only') {
-      router.push('/dashboard/budget/charges');
+    if (renderMode === 'pie-only' && onSettingsOpen) {
+      onSettingsOpen();
     } else {
       window.dispatchEvent(new CustomEvent('open-budget-settings'));
     }

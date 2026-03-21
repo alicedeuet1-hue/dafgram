@@ -53,11 +53,13 @@ import { format as formatDate } from 'date-fns';
 interface SavingsPieChartsProps {
   currentDate?: Date;
   renderMode?: 'full' | 'pie-only';
+  onSettingsOpen?: () => void;
 }
 
 export default function SavingsPieCharts({
   currentDate: externalDate,
   renderMode = 'full',
+  onSettingsOpen,
 }: SavingsPieChartsProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -696,8 +698,8 @@ export default function SavingsPieCharts({
                   size="small"
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (renderMode === 'pie-only') {
-                      router.push('/dashboard/budget/epargne');
+                    if (renderMode === 'pie-only' && onSettingsOpen) {
+                      onSettingsOpen();
                     } else {
                       const pcts: Record<number, number> = {};
                       categories.forEach(c => {

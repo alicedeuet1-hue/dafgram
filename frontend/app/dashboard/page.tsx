@@ -9,6 +9,8 @@ import BudgetAlerts from '@/components/BudgetAlerts';
 import RevenueChart from '@/components/RevenueChart';
 import PersonalExpenseSummary from '@/components/PersonalExpenseSummary';
 import SalesTracker from '@/components/SalesTracker';
+import BudgetSettingsDialog from '@/components/BudgetSettingsDialog';
+import SavingsSettingsDialog from '@/components/SavingsSettingsDialog';
 import {
   Box,
   Typography,
@@ -80,6 +82,10 @@ export default function DashboardPage() {
 
   // Clé de rafraîchissement pour forcer le re-render des composants après ajout de transaction
   const [refreshKey, setRefreshKey] = useState(0);
+
+  // Dialogs de paramétrage budget/épargne
+  const [budgetSettingsOpen, setBudgetSettingsOpen] = useState(false);
+  const [savingsSettingsOpen, setSavingsSettingsOpen] = useState(false);
 
   // Transaction rapide (comptes personnels)
   const [txDialogOpen, setTxDialogOpen] = useState(false);
@@ -336,6 +342,7 @@ export default function DashboardPage() {
                 currentDate={currentDate}
                 hideUnallocated={hideUnallocated}
                 renderMode="pie-only"
+                onSettingsOpen={() => setBudgetSettingsOpen(true)}
               />
             </Grid>
             <Grid item xs={12} sm={isPersonalAccount ? 6 : 4}>
@@ -343,6 +350,7 @@ export default function DashboardPage() {
                 key={`savings-${refreshKey}`}
                 currentDate={currentDate}
                 renderMode="pie-only"
+                onSettingsOpen={() => setSavingsSettingsOpen(true)}
               />
             </Grid>
             {!isPersonalAccount && (
@@ -595,6 +603,25 @@ export default function DashboardPage() {
           </DialogActions>
         </Dialog>
       )}
+      {/* Dialogs de paramétrage budget/épargne */}
+      <BudgetSettingsDialog
+        open={budgetSettingsOpen}
+        onClose={() => {
+          setBudgetSettingsOpen(false);
+          setRefreshKey(k => k + 1);
+        }}
+        month={selectedMonth}
+        year={selectedYear}
+      />
+      <SavingsSettingsDialog
+        open={savingsSettingsOpen}
+        onClose={() => {
+          setSavingsSettingsOpen(false);
+          setRefreshKey(k => k + 1);
+        }}
+        month={selectedMonth}
+        year={selectedYear}
+      />
     </DashboardLayout>
   );
 }
