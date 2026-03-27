@@ -535,11 +535,28 @@ export default function ComptabilitePage() {
     setOpenRuleDialog(true);
   };
 
+  // Extraire un mot-clé pertinent de la description pour pré-remplir le pattern
+  const extractKeyword = (description: string): string => {
+    // Nettoyer la description : retirer dates, références, numéros de compte, etc.
+    const cleaned = description
+      .replace(/\d{2}[\/.-]\d{2}[\/.-]\d{2,4}/g, '') // dates
+      .replace(/REF\s*:?\s*\S+/gi, '')                 // références
+      .replace(/N[°o]\s*\S+/gi, '')                     // numéros
+      .replace(/\b[A-Z]{2}\d{10,}\b/g, '')             // IBAN/comptes
+      .replace(/\b\d{5,}\b/g, '')                       // longs numéros
+      .trim();
+
+    // Prendre les 2-3 premiers mots significatifs (> 2 caractères)
+    const words = cleaned.split(/\s+/).filter(w => w.length > 2);
+    if (words.length === 0) return description.split(/\s+/)[0] || description;
+    return words.slice(0, 3).join(' ');
+  };
+
   // Créer une règle pré-remplie depuis une transaction du preview
   const handleCreateRuleFromPreview = (transaction: ImportPreviewTransaction) => {
     setEditingRule(null);
     setNewRule({
-      pattern: transaction.description,
+      pattern: extractKeyword(transaction.description),
       match_type: 'contains',
       source_type: transaction.type as '' | 'revenue' | 'expense',
       category_id: transaction.category_id || 0,
@@ -550,13 +567,35 @@ export default function ComptabilitePage() {
   };
 
   // Actualiser les catégories en réappliquant les règles
+  // Sépare les transactions déjà catégorisées manuellement (on ne les touche pas)
+  // des non-catégorisées (on applique les règles dessus)
   const handleRefreshRules = async () => {
     if (!importPreview) return;
     setImportLoading(true);
     try {
-      // Ne réappliquer les règles que sur les transactions non-dupliquées sans catégorie manuelle confirmée
-      const res = await bankAPI.applyRules(importPreview);
-      setImportPreview(res.data);
+      // Séparer : celles sans catégorie → on applique les règles. Celles avec → on garde.
+      const uncategorized = importPreview.filter(t => !t.is_duplicate && (!t.category_id || t.category_id <= 0));
+      const alreadyCategorized = importPreview.filter(t => t.is_duplicate || (t.category_id && t.category_id > 0));
+
+      if (uncategorized.length === 0) {
+        // Toutes catégorisées — réappliquer sur tout (l'utilisateur veut rafraîchir)
+        const res = await bankAPI.applyRules(importPreview);
+        setImportPreview(res.data);
+      } else {
+        // Appliquer les règles uniquement sur les non-catégorisées
+        const res = await bankAPI.applyRules(uncategorized);
+        // Reconstruire la liste complète en gardant l'ordre original
+        const appliedMap = new Map<string, ImportPreviewTransaction>();
+        res.data.forEach(t => appliedMap.set(t.reference_hash, t));
+
+        const merged = importPreview.map(t => {
+          if (!t.is_duplicate && (!t.category_id || t.category_id <= 0)) {
+            return appliedMap.get(t.reference_hash) || t;
+          }
+          return t;
+        });
+        setImportPreview(merged);
+      }
     } catch (error) {
       console.error('Error applying rules:', error);
     } finally {

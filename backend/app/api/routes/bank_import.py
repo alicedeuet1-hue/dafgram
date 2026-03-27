@@ -487,24 +487,33 @@ async def apply_rules_to_transactions(
     for t in data.transactions:
         matched = False
         for rule in rules:
+            # Une règle sans pattern ET sans source_type ne match rien
+            if not rule.pattern and not rule.source_type:
+                continue
+
             # Vérifier le filtre source_type
             if rule.source_type and rule.source_type.value != t.type:
                 continue
 
-            # Vérifier le pattern
+            # Vérifier le pattern (obligatoire pour matcher si défini)
+            pattern_matched = True  # Par défaut OK si pas de pattern
             if rule.pattern:
                 desc_lower = t.description.lower()
                 pattern_lower = rule.pattern.lower()
-                if rule.match_type == 'contains' and pattern_lower not in desc_lower:
-                    continue
-                elif rule.match_type == 'starts_with' and not desc_lower.startswith(pattern_lower):
-                    continue
-                elif rule.match_type == 'exact' and desc_lower != pattern_lower:
-                    continue
+                pattern_matched = False
+
+                if rule.match_type == 'contains':
+                    pattern_matched = pattern_lower in desc_lower
+                elif rule.match_type == 'starts_with':
+                    pattern_matched = desc_lower.startswith(pattern_lower)
+                elif rule.match_type == 'exact':
+                    pattern_matched = desc_lower == pattern_lower
                 elif rule.match_type == 'regex':
                     import re
-                    if not re.search(rule.pattern, t.description, re.IGNORECASE):
-                        continue
+                    pattern_matched = bool(re.search(rule.pattern, t.description, re.IGNORECASE))
+
+            if not pattern_matched:
+                continue
 
             # Match trouvé - appliquer la règle
             cat = db.query(Category).filter(Category.id == rule.category_id).first()
@@ -522,7 +531,7 @@ async def apply_rules_to_transactions(
             break
 
         if not matched:
-            # Garder la catégorie existante (assignée manuellement)
+            # Garder la transaction telle quelle
             result.append(t)
 
     return result
