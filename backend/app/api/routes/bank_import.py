@@ -465,6 +465,69 @@ async def delete_categorization_rule(
     return {"message": "Règle supprimée"}
 
 
+class ApplyRulesRequest(BaseModel):
+    transactions: List[ImportPreviewTransaction]
+
+
+@router.post("/rules/apply", response_model=List[ImportPreviewTransaction])
+async def apply_rules_to_transactions(
+    data: ApplyRulesRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Appliquer les règles de catégorisation sur une liste de transactions (preview)"""
+    company_id = current_user.current_company_id or current_user.company_id
+
+    rules = db.query(CategoryRule).filter(
+        CategoryRule.company_id == company_id,
+        CategoryRule.is_active == True
+    ).order_by(CategoryRule.priority.desc()).all()
+
+    result = []
+    for t in data.transactions:
+        matched = False
+        for rule in rules:
+            # Vérifier le filtre source_type
+            if rule.source_type and rule.source_type.value != t.type:
+                continue
+
+            # Vérifier le pattern
+            if rule.pattern:
+                desc_lower = t.description.lower()
+                pattern_lower = rule.pattern.lower()
+                if rule.match_type == 'contains' and pattern_lower not in desc_lower:
+                    continue
+                elif rule.match_type == 'starts_with' and not desc_lower.startswith(pattern_lower):
+                    continue
+                elif rule.match_type == 'exact' and desc_lower != pattern_lower:
+                    continue
+                elif rule.match_type == 'regex':
+                    import re
+                    if not re.search(rule.pattern, t.description, re.IGNORECASE):
+                        continue
+
+            # Match trouvé - appliquer la règle
+            cat = db.query(Category).filter(Category.id == rule.category_id).first()
+            result.append(ImportPreviewTransaction(
+                date=t.date,
+                description=t.description,
+                amount=t.amount,
+                type=rule.transaction_type.value if rule.transaction_type else t.type,
+                category_id=rule.category_id,
+                category_name=cat.name if cat else t.category_name,
+                is_duplicate=t.is_duplicate,
+                reference_hash=t.reference_hash,
+            ))
+            matched = True
+            break
+
+        if not matched:
+            # Garder la catégorie existante (assignée manuellement)
+            result.append(t)
+
+    return result
+
+
 # ============== Import bancaire ==============
 
 @router.post("/import/preview", response_model=ImportPreviewResponse)

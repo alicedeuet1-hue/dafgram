@@ -59,6 +59,8 @@ import {
   ChevronRight,
   Balance as BalanceIcon,
   Savings as SavingsIcon,
+  Refresh as RefreshIcon,
+  AutoFixHigh as RuleIcon,
 } from '@mui/icons-material';
 import { transactionsAPI, bankAPI, invoicesAPI, budgetCategoriesAPI, savingsCategoriesAPI, Category, CategoryRule, ImportPreviewTransaction, InvoiceListItem, AccountType, AssociateSummary, BudgetCategory, SavingsCategory } from '@/lib/api';
 import ReceiptIcon from '@mui/icons-material/Receipt';
@@ -531,6 +533,35 @@ export default function ComptabilitePage() {
       priority: rule.priority,
     });
     setOpenRuleDialog(true);
+  };
+
+  // Créer une règle pré-remplie depuis une transaction du preview
+  const handleCreateRuleFromPreview = (transaction: ImportPreviewTransaction) => {
+    setEditingRule(null);
+    setNewRule({
+      pattern: transaction.description,
+      match_type: 'contains',
+      source_type: transaction.type as '' | 'revenue' | 'expense',
+      category_id: transaction.category_id || 0,
+      transaction_type: '',
+      priority: 0,
+    });
+    setOpenRuleDialog(true);
+  };
+
+  // Actualiser les catégories en réappliquant les règles
+  const handleRefreshRules = async () => {
+    if (!importPreview) return;
+    setImportLoading(true);
+    try {
+      // Ne réappliquer les règles que sur les transactions non-dupliquées sans catégorie manuelle confirmée
+      const res = await bankAPI.applyRules(importPreview);
+      setImportPreview(res.data);
+    } catch (error) {
+      console.error('Error applying rules:', error);
+    } finally {
+      setImportLoading(false);
+    }
   };
 
   const handleDeleteRule = async (id: number) => {
@@ -1621,18 +1652,38 @@ export default function ComptabilitePage() {
             </Box>
           ) : (
             <Box>
-              <Alert severity="info" sx={{ mb: 2 }}>
-                {importPreview.length} transaction(s) détectée(s).
-                {importPreview.filter(t => t.is_duplicate === true).length > 0 && (
-                  <> {importPreview.filter(t => t.is_duplicate === true).length} doublon(s) détecté(s) (seront ignorés).</>
-                )}
-                {importPreview.filter(t => t.is_duplicate !== true && (!t.category_id || t.category_id <= 0)).length > 0 && (
-                  <Box sx={{ color: 'warning.main', mt: 1 }}>
-                    <Warning sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} />
-                    {importPreview.filter(t => t.is_duplicate !== true && (!t.category_id || t.category_id <= 0)).length} transaction(s) sans catégorie. Assignez une catégorie à chacune.
-                  </Box>
-                )}
-              </Alert>
+              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 2 }}>
+                <Alert severity="info" sx={{ flex: 1 }}>
+                  {importPreview.length} transaction(s) détectée(s).
+                  {importPreview.filter(t => t.is_duplicate === true).length > 0 && (
+                    <> {importPreview.filter(t => t.is_duplicate === true).length} doublon(s) détecté(s) (seront ignorés).</>
+                  )}
+                  {importPreview.filter(t => t.is_duplicate !== true && (!t.category_id || t.category_id <= 0)).length > 0 && (
+                    <Box sx={{ color: 'warning.main', mt: 1 }}>
+                      <Warning sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} />
+                      {importPreview.filter(t => t.is_duplicate !== true && (!t.category_id || t.category_id <= 0)).length} transaction(s) sans catégorie. Assignez une catégorie à chacune.
+                    </Box>
+                  )}
+                </Alert>
+                <Tooltip title="Appliquer les règles automatiques">
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<RefreshIcon />}
+                    onClick={handleRefreshRules}
+                    disabled={importLoading}
+                    sx={{
+                      minWidth: 'auto',
+                      whiteSpace: 'nowrap',
+                      borderColor: '#F5C518',
+                      color: '#F5C518',
+                      '&:hover': { borderColor: '#E0B000', bgcolor: '#FEF9E7' },
+                    }}
+                  >
+                    Actualiser
+                  </Button>
+                </Tooltip>
+              </Box>
 
               {/* Informations de debug sur le parsing */}
               {importDebugInfo && importDebugInfo.skipped_lines && importDebugInfo.skipped_lines > 0 && (
@@ -1725,6 +1776,7 @@ export default function ComptabilitePage() {
                       <TableCell>Type</TableCell>
                       <TableCell>Montant</TableCell>
                       <TableCell>Catégorie</TableCell>
+                      <TableCell>Règle</TableCell>
                       <TableCell>Statut</TableCell>
                     </TableRow>
                   </TableHead>
@@ -1807,6 +1859,19 @@ export default function ComptabilitePage() {
                                 />
                               )}
                             </Box>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {t.is_duplicate !== true && t.category_id && t.category_id > 0 && (
+                            <Tooltip title="Créer une règle automatique à partir de cette transaction">
+                              <IconButton
+                                size="small"
+                                onClick={() => handleCreateRuleFromPreview(t)}
+                                sx={{ color: '#F5C518' }}
+                              >
+                                <RuleIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
                           )}
                         </TableCell>
                         <TableCell>

@@ -84,6 +84,7 @@ class CompanyUpdateRequest(BaseModel):
     country: Optional[str] = None
     currency: Optional[str] = None
     language: Optional[str] = None
+    account_type: Optional[str] = None  # 'personal' ou 'business'
 
 
 class SwitchCompanyRequest(BaseModel):
@@ -212,6 +213,14 @@ async def update_current_company(
             )
         # Marquer que le nom a été changé
         company.name_changed = True
+
+    # Si on change le account_type, mettre à jour aussi le subscription_plan
+    if 'account_type' in update_data and update_data['account_type']:
+        new_type = update_data['account_type']
+        if new_type == 'personal':
+            update_data['subscription_plan'] = SubscriptionPlan.PERSONAL.value if hasattr(SubscriptionPlan, 'PERSONAL') else 'personal'
+        elif new_type == 'business':
+            update_data['subscription_plan'] = SubscriptionPlan.BUSINESS.value if hasattr(SubscriptionPlan, 'BUSINESS') else 'business'
 
     for field, value in update_data.items():
         print(f"DEBUG: Setting {field} = {value}")  # Debug log

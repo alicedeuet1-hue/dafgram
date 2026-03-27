@@ -308,6 +308,7 @@ export interface CompanyUpdateData {
   country?: string;
   currency?: string;
   language?: string;
+  account_type?: 'personal' | 'business';
 }
 
 export const companiesAPI = {
@@ -559,6 +560,8 @@ export const bankAPI = {
   }) => api.put<CategoryRule>(`/api/bank/rules/${id}`, data),
   deleteRule: (id: number) =>
     api.delete(`/api/bank/rules/${id}`),
+  applyRules: (transactions: ImportPreviewTransaction[]) =>
+    api.post<ImportPreviewTransaction[]>('/api/bank/rules/apply', { transactions }),
 
   // Import
   previewImport: (file: File) => {
