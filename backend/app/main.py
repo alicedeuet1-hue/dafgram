@@ -1,7 +1,9 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
 import os
 import logging
 from app.api.routes.health import router as health_router
@@ -33,7 +35,39 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title=settings.APP_NAME, version=settings.API_VERSION, lifespan=lifespan)
+app = FastAPI(
+    title=settings.APP_NAME,
+    version=settings.API_VERSION,
+    lifespan=lifespan,
+    docs_url=None,      # Désactiver /docs en production
+    redoc_url=None,      # Désactiver /redoc en production
+    openapi_url=None,    # Désactiver /openapi.json en production
+)
+
+
+# Middleware de sécurité : ajoute les headers sur chaque réponse
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response: Response = await call_next(request)
+        # HSTS - Force HTTPS pendant 1 an, inclut les sous-domaines
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+        # Protection clickjacking
+        response.headers["X-Frame-Options"] = "DENY"
+        # Protection MIME sniffing
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        # Referrer policy
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        # Permissions policy
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=()"
+        # Cacher la version du serveur
+        response.headers["X-Powered-By"] = ""
+        response.headers["Server"] = "DafGram"
+        # CSP pour l'API (restrictive)
+        response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
+        return response
+
+
+app.add_middleware(SecurityHeadersMiddleware)
 
 # Configuration CORS
 app.add_middleware(
@@ -78,8 +112,4 @@ app.include_router(files_router, prefix="/api")
 
 @app.get("/")
 def root():
-    return {
-        "name": settings.APP_NAME,
-        "version": settings.API_VERSION,
-        "status": "ok"
-    }
+    return {"status": "ok"}

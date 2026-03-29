@@ -1,0 +1,4 @@
+Contact: mailto:security@dafgram.com
+Preferred-Languages: fr, en
+Canonical: https://dafgram.com/.well-known/security.txt
+Expires: 2027-03-29T00:00:00.000Z
