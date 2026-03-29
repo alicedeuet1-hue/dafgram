@@ -23,6 +23,7 @@ from app.api.routes.savings_categories import router as savings_categories_route
 from app.api.routes.time_entries import router as time_entries_router
 from app.api.routes.payment import router as payment_router
 from app.api.routes.files import router as files_router
+from app.api.routes.gdpr import router as gdpr_router
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -109,6 +110,7 @@ app.include_router(savings_categories_router, prefix="/api/savings-categories")
 app.include_router(time_entries_router, prefix="/api/time-entries")
 app.include_router(payment_router, prefix="/api/payment")
 app.include_router(files_router, prefix="/api")
+app.include_router(gdpr_router, prefix="/api/gdpr")
 
 @app.get("/")
 def root():

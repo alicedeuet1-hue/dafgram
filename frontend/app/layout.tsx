@@ -1,6 +1,7 @@
 'use client';
 
 import { ThemeProvider } from '../contexts/ThemeContext';
+import CookieConsent from '../components/CookieConsent';
 import "./globals.css";
 
 export default function RootLayout({
@@ -18,6 +19,7 @@ export default function RootLayout({
       <body>
         <ThemeProvider>
           {children}
+          <CookieConsent />
         </ThemeProvider>
       </body>
     </html>

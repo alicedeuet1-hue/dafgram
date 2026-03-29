@@ -3,6 +3,7 @@ from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum
 from app.db.database import Base
+from app.core.encryption import EncryptedString
 
 # Enums
 class UserRole(str, enum.Enum):
@@ -113,8 +114,8 @@ class Company(Base):
     country = Column(String(100), nullable=True)
 
     # Informations légales
-    vat_number = Column(String(50), nullable=True)  # Numéro de TVA
-    registration_number = Column(String(100), nullable=True)  # SIRET/SIREN
+    vat_number = Column(EncryptedString(512), nullable=True)  # Numéro de TVA (chiffré)
+    registration_number = Column(EncryptedString(512), nullable=True)  # SIRET/SIREN (chiffré)
 
     # Préférences
     currency = Column(String(10), default="XPF")  # Devise (EUR, USD, XPF, etc.)
@@ -861,7 +862,7 @@ class CompanySettings(Base):
     smtp_host = Column(String(255), nullable=True)  # Ex: smtp.gmail.com
     smtp_port = Column(Integer, default=587)  # Port SMTP (587 pour TLS, 465 pour SSL)
     smtp_user = Column(String(255), nullable=True)  # Nom d'utilisateur SMTP
-    smtp_password = Column(String(255), nullable=True)  # Mot de passe SMTP (à chiffrer en prod)
+    smtp_password = Column(EncryptedString(512), nullable=True)  # Mot de passe SMTP (chiffré)
     smtp_from_email = Column(String(255), nullable=True)  # Adresse d'expédition
     smtp_from_name = Column(String(255), nullable=True)  # Nom d'expédition
 
@@ -917,9 +918,9 @@ class BankAccount(Base):
     # Informations du compte
     label = Column(String(100), nullable=True)  # Nom/label du compte (ex: "Compte principal", "Compte épargne")
     bank_name = Column(String(200), nullable=True)
-    account_holder = Column(String(200), nullable=True)  # Titulaire du compte
-    iban = Column(String(50), nullable=True)
-    bic = Column(String(20), nullable=True)
+    account_holder = Column(EncryptedString(512), nullable=True)  # Titulaire du compte (chiffré)
+    iban = Column(EncryptedString(512), nullable=True)  # Chiffré
+    bic = Column(EncryptedString(512), nullable=True)  # Chiffré
 
     # Compte par défaut pour les documents
     is_default = Column(Boolean, default=False)

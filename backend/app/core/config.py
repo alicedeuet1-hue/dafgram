@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     MICROSOFT_CLIENT_SECRET: str = ""
     OAUTH_REDIRECT_URI: str = "http://localhost:8000/api/auth/callback"
 
+    # Encryption
+    ENCRYPTION_KEY: str = os.getenv("ENCRYPTION_KEY", "")
+
     # Application
     APP_NAME: str = "DafGram"
     API_VERSION: str = "0.1.0"

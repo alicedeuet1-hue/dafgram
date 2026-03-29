@@ -33,3 +33,6 @@ boto3==1.35.0
 
 # Email
 aiosmtplib==3.0.1
+
+# Encryption
+cryptography==44.0.0
