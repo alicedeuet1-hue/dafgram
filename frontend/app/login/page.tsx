@@ -1003,19 +1003,6 @@ export default function LoginPage() {
             Créer un compte
           </Button>
 
-          {/* Demo accounts - masqué pour la production
-          <Box sx={{ mt: 3, p: 2, bgcolor: '#F9FAFB', borderRadius: 2 }}>
-            <Typography variant="body2" sx={{ fontWeight: 600, color: '#1A1A1A', mb: 1 }}>
-              Comptes de démonstration
-            </Typography>
-            <Typography variant="caption" sx={{ color: '#6B7280', display: 'block' }}>
-              Admin: admin@demo.com / admin123
-            </Typography>
-            <Typography variant="caption" sx={{ color: '#6B7280' }}>
-              Employé: employee@demo.com / employee123
-            </Typography>
-          </Box>
-          */}
         </Paper>
       </Container>
 

@@ -4,6 +4,19 @@ const nextConfig = {
   poweredByHeader: false, // Cacher "X-Powered-By: Next.js"
   async headers() {
     return [
+      // Empêcher l'indexation de /login et /dashboard
+      {
+        source: '/login',
+        headers: [
+          { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
+        ],
+      },
+      {
+        source: '/dashboard/:path*',
+        headers: [
+          { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
+        ],
+      },
       {
         source: '/(.*)',
         headers: [
