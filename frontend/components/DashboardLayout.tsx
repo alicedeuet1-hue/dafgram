@@ -141,13 +141,13 @@ export default function DashboardLayout({ children }: Props) {
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push('/login');
+      router.push('/auth/dg-access');
     }
   }, [isAuthenticated, isLoading, router]);
 
   const handleLogout = useCallback(() => {
     logout();
-    router.push('/login');
+    router.push('/auth/dg-access');
   }, [logout, router]);
 
   // Déconnexion automatique après 20 minutes d'inactivité

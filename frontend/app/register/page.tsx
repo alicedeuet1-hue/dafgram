@@ -1061,7 +1061,7 @@ function RegisterContent() {
           <Typography variant="body2" color="text.secondary">
             Vous avez déjà un compte ?{' '}
             <Button
-              onClick={() => router.push('/login')}
+              onClick={() => router.push('/auth/dg-access')}
               sx={{ color: '#F5C518', fontWeight: 600, textTransform: 'none' }}
             >
               Se connecter

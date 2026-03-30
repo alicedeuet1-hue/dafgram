@@ -76,7 +76,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       // Token expiré ou invalide
       localStorage.removeItem('access_token');
-      window.location.href = '/login';
+      window.location.href = '/auth/dg-access';
     } else if (error.response?.status === 402) {
       // Paiement requis - rediriger vers la page de paiement
       const detail = error.response.data?.detail;
